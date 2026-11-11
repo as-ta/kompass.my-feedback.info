@@ -1,0 +1,17 @@
+<?php
+$phases = [1 => 'Anliegen klären', 2 => 'Anmelden', 3 => 'Freischalten', 4 => 'Durchführen', 5 => 'Auswerten'];
+$current = (int) $progress['current'];
+$done = array_map('intval', $progress['done'] ?? []);
+?>
+<nav class="progress" aria-label="Ihr Weg zur Befragung">
+    <ol>
+        <?php foreach ($phases as $number => $label): ?>
+            <?php $state = $number === $current ? 'current' : ($number < $current || in_array($number, $done, true) ? 'done' : 'upcoming'); ?>
+            <li class="progress-step progress-step--<?= $state ?><?= $number <= $current ? ' progress-step--reached' : '' ?>"<?= $state === 'current' ? ' aria-current="step"' : '' ?>>
+                <span class="progress-dot" aria-hidden="true"><?= $state === 'done' ? '✓' : $number ?></span>
+                <span class="progress-label"><?= $this->escapeHtml($label) ?><?php if ($state !== 'upcoming'): ?><span class="progress-sr"> (<?= $state === 'done' ? 'erledigt' : 'aktueller Schritt' ?>)</span><?php endif ?></span>
+            </li>
+        <?php endforeach ?>
+    </ol>
+    <p class="progress-summary" aria-hidden="true"><?= $current ?> von <?= count($phases) ?> · <?= $this->escapeHtml($phases[$current]) ?></p>
+</nav>

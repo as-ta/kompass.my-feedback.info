@@ -535,6 +535,9 @@ final class AccountController extends AbstractActionController
     private function page(string $page, array $data = []): ViewModel
     {
         $this->layout()->accountWorkspace = in_array($page, ['list', 'draft', 'delete', 'missing', 'billing', 'invoices', 'bookkeeping', 'issuer', 'forbidden'], true);
+        if (in_array($page, ['login', 'verify', 'expired'], true)) {
+            $this->layout()->progress = ['current' => 2];
+        }
         $data += [
             'pendingDraft' => isset($_SESSION['kompass_pending']),
             'bookkeepingAdmin' => (bool) $this->layout()->bookkeepingAdmin,

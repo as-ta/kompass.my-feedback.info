@@ -51,6 +51,7 @@ final class Module
                     'wizard/contact-link' => $views . '/contact-link.phtml',
                     'wizard/combined' => $views . '/combined.phtml',
                     'wizard/notice' => $views . '/notice.phtml',
+                    'wizard/progress' => $views . '/progress.phtml',
                     'wizard/guide' => $views . '/guide.phtml',
                     'wizard/faq' => $views . '/faq.phtml',
                     'wizard/contact' => $views . '/contact.phtml',

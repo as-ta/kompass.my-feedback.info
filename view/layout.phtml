@@ -25,6 +25,9 @@
         </div>
     </header>
     <main class="shell main<?= ($this->accountWorkspace || $this->wizardWorkspace) ? ' account-shell' : '' ?>">
+        <?php if ($this->progress): ?>
+            <?= $this->partial('wizard/progress', ['progress' => $this->progress]) ?>
+        <?php endif ?>
         <?php if ($this->wizardWorkspace): ?>
             <div class="account-workspace">
                 <?= $this->partial('wizard/workspace-nav', ['current' => 'new', 'csrf' => $this->workspaceCsrf]) ?>

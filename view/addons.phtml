@@ -3,8 +3,8 @@ $url = $this->url('wizard');
 $baseCount = count($survey['questions']);
 $lengthKey = 'length:' . hash('sha256', serialize($answers)) . ':';
 ?>
-<section class="card" aria-labelledby="question">
-    <p class="eyebrow">Schritt <?= count($answers) + 1 ?> · Zusatzfragen</p>
+<section class="card card--progress" style="--fill: <?= round($progress * 100) ?>%" aria-labelledby="question">
+    <p class="eyebrow">Anliegen klären · Zusatzfragen</p>
     <h1 id="question">Möchten Sie noch etwas fragen?</h1>
     <p class="intro">Ihr Fragebogen enthält bereits <?= $baseCount ?> Fragen. Wählen Sie, was Ihnen zusätzlich bei Ihrer Entscheidung hilft.</p>
 

@@ -132,10 +132,56 @@ final class Wizard
         return array_slice($answers, 0, $position) + ['selected' => $answers[$step]];
     }
 
+    /**
+     * Anteil der bereits beantworteten Wizard-Fragen (0 bis 1).
+     * Gerechnet wird mit dem längsten noch möglichen Weg, damit der Füllstand nie zurückspringt.
+     * Der Zusatzfragen-Schritt zählt als letzte Station vor der Empfehlung.
+     */
+    public static function addonsProgress(array $answers): float
+    {
+        return count($answers) / (count($answers) + 1);
+    }
+
+    private function progress(string $id, array $answers): float
+    {
+        $goals = (array) ($answers['goal'] ?? []);
+        $answeredCombine = count(array_filter(array_keys($answers), static fn ($key): bool => str_starts_with((string) $key, 'combine-')));
+        $pendingCombine = max(0, count($goals) - 1 - $answeredCombine);
+
+        $remaining = match (true) {
+            $id === 'goal' => $this->longest('goal'),
+            $id === 'main' => 1 + max(array_map(
+                fn (string $goal): int => $this->longest($this->steps['goal']['options'][$goal]['next']),
+                $goals,
+            )) + $pendingCombine,
+            str_starts_with($id, 'combine-') => $pendingCombine,
+            default => $this->longest($id) + $pendingCombine,
+        };
+
+        return count($answers) / (count($answers) + $remaining + 1);
+    }
+
+    private function longest(string $id): int
+    {
+        static $memo = [];
+        if (!isset($this->steps[$id])) {
+            return 0;
+        }
+        if (!isset($memo[$id])) {
+            $memo[$id] = 1 + max(0, ...array_map(
+                fn (array $option): int => isset($option['next']) ? $this->longest($option['next']) : 0,
+                array_values($this->steps[$id]['options']),
+            ));
+        }
+
+        return $memo[$id];
+    }
+
     private function step(string $id, array $step, array $answers, array $query, array $goals = []): array
     {
         return [
             'stepId' => $id,
+            'progress' => $this->progress($id, $answers),
             'step' => $step,
             'answers' => $answers,
             'invalid' => array_key_exists($id, $query) || ($id === 'goal' && isset($query['choose-goals']))

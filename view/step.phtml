@@ -1,5 +1,4 @@
 <?php
-$number = count($answers) + 1;
 $isGoal = $stepId === 'goal';
 $checkedGoals = $goals !== [] ? $goals : (is_array($selected) ? $selected : []);
 $mixedStaff = count($checkedGoals) > 1 && in_array('employees', $checkedGoals, true);
@@ -11,8 +10,8 @@ $checked = $isGoal ? $checkedGoals : (is_string($selected)
 $url = $this->url('wizard');
 $backUrl = $this->url('wizard', [], ['query' => $back]);
 ?>
-<section class="card" aria-labelledby="question">
-    <p class="eyebrow">Schritt <?= $number ?></p>
+<section class="card card--progress" style="--fill: <?= round($progress * 100) ?>%" aria-labelledby="question">
+    <p class="eyebrow">Anliegen klären</p>
     <h1 id="question"><?= $this->escapeHtml($step['title']) ?></h1>
     <p class="intro" id="hint"><?= $this->escapeHtml($step['hint']) ?></p>
 

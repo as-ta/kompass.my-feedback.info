@@ -423,3 +423,50 @@ button:hover { background: #245307; }
 .bookkeeping-table tr:last-child td { border-block-end: 0; }
 .bookkeeping-table .bookkeeping-amount { white-space: nowrap; text-align: end; }
 .bookkeeping-table td:nth-child(3), .bookkeeping-table td:last-child { white-space: nowrap; }
+
+/* Fortschrittsleiste über den Gesamtprozess */
+.progress { margin: 0 0 clamp(1rem, 3vw, 1.75rem); }
+.progress ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.progress-step { position: relative; display: grid; justify-items: center; gap: .4rem; text-align: center; color: var(--muted); font-size: .85rem; line-height: 1.25; }
+.progress-step + .progress-step::before {
+    content: "";
+    position: absolute;
+    top: .95rem;
+    right: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+}
+.progress-step--reached::before { background: var(--green); }
+.progress-dot {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    background: white;
+    font-weight: 700;
+    font-size: .85rem;
+}
+.progress-step--done .progress-dot { border-color: var(--green); color: var(--green); }
+.progress-step--current { color: var(--ink); font-weight: 700; }
+.progress-step--current .progress-dot { border-color: var(--green); background: var(--green); color: white; box-shadow: 0 0 0 4px #e3f1d3; }
+.progress-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.progress-summary { display: none; margin: .6rem 0 0; color: var(--ink); font-size: .9rem; font-weight: 700; text-align: center; }
+@media (max-width: 540px) {
+    .progress-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .progress-summary { display: block; }
+}
+
+/* Füllstand im Kartenrand: Fortschritt innerhalb von Phase 1 */
+.card--progress {
+    border-top-color: transparent;
+    background:
+        linear-gradient(var(--accent), var(--accent)) 0 0 / var(--fill, 0%) .3rem no-repeat border-box,
+        linear-gradient(#e2edda, #e2edda) 0 0 / 100% .3rem no-repeat border-box,
+        white;
+}

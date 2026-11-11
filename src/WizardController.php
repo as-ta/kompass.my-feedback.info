@@ -34,6 +34,10 @@ final class WizardController extends AbstractActionController
         if (($query['contact'] ?? null) === '1') {
             return $this->contact();
         }
+        $this->layout()->progress = [
+            'current' => 1,
+            'done' => $this->layout()->wizardWorkspace ? [2] : [],
+        ];
 
         $catalog = require dirname(__DIR__) . '/config/catalog.php';
         $combinations = require dirname(__DIR__) . '/config/combinations.php';
@@ -106,6 +110,7 @@ final class WizardController extends AbstractActionController
             'selected' => $selected,
             'questions' => $questions,
             'review' => $review,
+            'progress' => Wizard::addonsProgress($answers),
             'longSurvey' => count($selected) >= 3 || count($survey['questions']) + count($selected) >= 7,
         ]);
         if (!$done) {
