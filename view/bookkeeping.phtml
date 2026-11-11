@@ -1,0 +1,58 @@
+<?php $bookUrl = fn (string $action, array $params = []) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action] + $params])); ?>
+<div class="account-workspace">
+    <?= $this->partial('wizard/workspace-nav', ['current' => 'bookkeeping', 'csrf' => $csrf, 'bookkeepingAdmin' => true]) ?>
+    <section class="card workspace-content">
+        <div class="workspace-heading">
+            <div>
+                <p class="eyebrow">Administration</p>
+                <h1>Buchhaltung</h1>
+                <p class="intro">Alle bestätigten Zahlungen und zugehörigen Rechnungen.</p>
+            </div>
+            <?php if ($entries !== []): ?>
+                <a class="workspace-create" href="<?= $bookUrl('bookkeeping-export') ?>">CSV herunterladen</a>
+            <?php endif ?>
+        </div>
+        <p class="detail">Das Buchungsdatum zeigt, wann die Zahlung im Kompass bestätigt wurde. Die Uhrzeiten werden für Deutschland angezeigt.</p>
+        <?php if ($entries === []): ?>
+            <p class="workspace-empty">Bisher liegen keine bestätigten Zahlungen vor.</p>
+        <?php else: ?>
+            <div class="bookkeeping-table" role="region" aria-label="Rechnungen und Zahlungen" tabindex="0">
+                <table>
+                    <thead><tr>
+                        <th scope="col">Rechnung</th>
+                        <th scope="col">Rechnungsdatum</th>
+                        <th scope="col">Buchungsdatum</th>
+                        <th scope="col">Kunde</th>
+                        <th scope="col">Befragung / Buchung</th>
+                        <th scope="col">Brutto</th>
+                        <th scope="col">PayPal-Transaktion</th>
+                        <th scope="col">Beleg</th>
+                    </tr></thead>
+                    <tbody>
+                        <?php foreach ($entries as $entry): ?>
+                            <tr>
+                                <td>
+                                    <?= $entry['invoice_number'] === null ? 'Rechnung fehlt' : $this->escapeHtml($entry['invoice_number']) ?>
+                                    <?php if (($entry['invoice_problem'] ?? '') !== ''): ?>
+                                        <p class="detail"><?= $this->escapeHtml($entry['invoice_problem']) ?></p>
+                                    <?php endif ?>
+                                </td>
+                                <td><?= $this->escapeHtml($entry['invoice_date']) ?></td>
+                                <td><?= $this->escapeHtml($entry['booking_date']) ?></td>
+                                <td><?= $this->escapeHtml($entry['customer']) ?></td>
+                                <td>Nr. <?= (int) $entry['poll_id'] ?> / <?= (int) $entry['period_number'] ?></td>
+                                <td class="bookkeeping-amount"><?= $this->escapeHtml(str_replace('.', ',', $entry['gross'])) ?> €</td>
+                                <td><?= $this->escapeHtml($entry['capture_id'] ?? '') ?></td>
+                                <td>
+                                    <?php if ($entry['invoice_number'] !== null): ?>
+                                        <a href="<?= $bookUrl('bookkeeping-receipt', ['period' => $entry['period_id']]) ?>">ZUGFeRD-PDF</a>
+                                    <?php endif ?>
+                                </td>
+                            </tr>
+                        <?php endforeach ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif ?>
+    </section>
+</div>

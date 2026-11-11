@@ -1,0 +1,9 @@
+<?php
+$label = match ($state) {
+    'ready' => 'Bereit zum Start',
+    'active' => 'Aktiv',
+    'closed' => 'Befragung abgeschlossen',
+    default => 'Entwurf',
+};
+?>
+<span class="poll-status poll-status--<?= $this->escapeHtmlAttr($state) ?>"><?= $label ?></span>

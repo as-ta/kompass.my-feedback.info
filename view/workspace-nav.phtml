@@ -1,0 +1,20 @@
+<?php $url = fn (string $action) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action]])); ?>
+<nav class="workspace-nav" aria-label="Kontobereich">
+    <?php if (!empty($bookkeepingAdmin)): ?>
+        <p>Administration</p>
+        <a<?= $current === 'bookkeeping' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('bookkeeping') ?>">Buchhaltung</a>
+        <a<?= $current === 'issuer' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('issuer') ?>">Rechnungsaussteller</a>
+    <?php else: ?>
+        <p>Ihr Kompass-Konto</p>
+        <?php if (empty($setup)): ?>
+            <a<?= $current === 'list' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('list') ?>">Meine Befragungen</a>
+            <a<?= $current === 'new' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Neue Befragung</a>
+            <a<?= $current === 'invoices' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('invoices') ?>">Meine Rechnungen</a>
+        <?php endif ?>
+        <a<?= $current === 'billing' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('billing') ?>">Rechnungsdaten</a>
+    <?php endif ?>
+    <form method="post" action="<?= $url('logout') ?>">
+        <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+        <button type="submit">Abmelden</button>
+    </form>
+</nav>

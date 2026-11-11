@@ -1,0 +1,27 @@
+<section class="card" aria-labelledby="contact">
+    <p class="eyebrow">Ein anderes Anliegen</p>
+    <h1 id="contact">Was möchten Sie herausfinden?</h1>
+    <p class="intro">Wir melden uns per E-Mail und besprechen mit Ihnen, welche Befragung zu Ihrem Vorhaben passt. Nach Rücksprache können wir auch eine individuelle Befragung für Sie durchführen.</p>
+
+    <?php if ($success): ?>
+        <p class="success" role="status">Danke für Ihre Nachricht. Sie wurde zum Versand übergeben.</p>
+    <?php elseif (!$available): ?>
+        <p class="survey-notice">Das Kontaktformular ist derzeit nicht verfügbar.</p>
+    <?php else: ?>
+        <?php if ($error !== ''): ?>
+            <p class="error" role="alert"><?= $this->escapeHtml($error) ?></p>
+        <?php endif ?>
+        <form class="contact-form" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['contact' => '1']])) ?>">
+            <input type="hidden" name="token" value="<?= $this->escapeHtmlAttr($token) ?>">
+            <div hidden><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
+            <label for="contact-email">Ihre E-Mail-Adresse</label>
+            <input id="contact-email" name="email" type="email" autocomplete="email" maxlength="254" required value="<?= $this->escapeHtmlAttr($email) ?>">
+            <label for="contact-message">Worum geht es?</label>
+            <span class="detail" id="contact-message-hint">Beschreiben Sie Ihr Vorhaben möglichst konkret. Was möchten Sie herausfinden und wen möchten Sie befragen? Wenn Sie schon einen Zeitraum im Kopf haben, nennen Sie ihn gern.</span>
+            <textarea id="contact-message" name="message" aria-describedby="contact-message-hint" rows="6" minlength="10" maxlength="3000" required><?= $this->escapeHtml($message) ?></textarea>
+            <p class="detail">Wir verwenden Ihre E-Mail-Adresse, um auf Ihre Anfrage zu antworten. Bitte geben Sie keine personenbezogenen Angaben zu Dritten ein.</p>
+            <button type="submit">Nachricht senden</button>
+        </form>
+    <?php endif ?>
+    <div class="actions"><a href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Zurück zum Assistenten</a></div>
+</section>

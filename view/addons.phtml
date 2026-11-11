@@ -1,0 +1,44 @@
+<?php
+$url = $this->url('wizard');
+$baseCount = count($survey['questions']);
+$lengthKey = 'length:' . hash('sha256', serialize($answers)) . ':';
+?>
+<section class="card" aria-labelledby="question">
+    <p class="eyebrow">Schritt <?= count($answers) + 1 ?> · Zusatzfragen</p>
+    <h1 id="question">Möchten Sie noch etwas fragen?</h1>
+    <p class="intro">Ihr Fragebogen enthält bereits <?= $baseCount ?> Fragen. Wählen Sie, was Ihnen zusätzlich bei Ihrer Entscheidung hilft.</p>
+
+    <?= $this->partial('wizard/combined', ['included' => $included, 'separate' => $separate]) ?>
+
+    <form method="get" action="<?= $this->escapeHtmlAttr($url) ?>" data-addons data-base-count="<?= $baseCount ?>" data-length-key="<?= $this->escapeHtmlAttr($lengthKey) ?>">
+        <?= $this->partial('wizard/fields', ['answers' => $answers]) ?>
+        <input type="hidden" name="review" value="1">
+
+        <fieldset class="options">
+            <legend>Zusatzfragen (freiwillig, mehrere möglich)</legend>
+            <?php foreach ($options as $key => $option): ?>
+                <label class="option">
+                    <input type="checkbox" name="extras[]" value="<?= $this->escapeHtmlAttr($key) ?>"<?= isset($selected[$key]) ? ' checked' : '' ?>>
+                    <span>
+                        <strong><?= $this->escapeHtml($option['text']) ?></strong>
+                        <span class="detail"><?= $key === 'comment' ? 'Antwort in eigenen Worten' : 'Eine Antwort zur Auswahl' ?></span>
+                    </span>
+                </label>
+            <?php endforeach ?>
+        </fieldset>
+
+        <p class="survey-length" data-question-count aria-live="polite">Insgesamt <?= $baseCount + count($selected) ?> Fragen</p>
+        <?= $this->partial('wizard/notice', [
+            'key' => $lengthKey . implode(',', array_keys($selected)),
+            'hidden' => !$longSurvey,
+            'title' => 'Lieber eins nach dem anderen.',
+            'message' => 'Ein kurzer Fragebogen ist leichter bis zum Ende zu beantworten. Wählen Sie zuerst die Fragen, deren Antworten Sie jetzt brauchen.',
+            'showLabel' => 'Hinweis zur Fragenzahl anzeigen',
+        ]) ?>
+        <div class="actions">
+            <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $back])) ?>">Zurück</a>
+            <button type="submit">Befragung ansehen <span aria-hidden="true">→</span></button>
+        </div>
+    </form>
+    <?= $this->partial('wizard/contact-link') ?>
+</section>

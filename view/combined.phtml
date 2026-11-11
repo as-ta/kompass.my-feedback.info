@@ -1,0 +1,22 @@
+<?php if ($included !== []): ?>
+    <div class="detail">
+        <strong>Diese Themen sind zusätzlich im Fragebogen enthalten.</strong>
+        <ul>
+            <?php foreach ($included as $label): ?>
+                <li><?= $this->escapeHtml($label) ?></li>
+            <?php endforeach ?>
+        </ul>
+    </div>
+<?php endif ?>
+<?php if ($separate !== []): ?>
+    <?= $this->partial('wizard/notice', [
+        'key' => 'separate:' . hash('sha256', serialize($separate)),
+        'hidden' => false,
+        'title' => count($separate) === 1
+            ? 'Dieses Thema wird nicht in den aktuellen Fragebogen aufgenommen.'
+            : 'Diese Themen werden nicht in den aktuellen Fragebogen aufgenommen.',
+        'message' => 'Sie können im Anschluss eine eigene Befragung dafür vorbereiten.',
+        'showLabel' => 'Separat geplante Themen anzeigen',
+        'separate' => $separate,
+    ]) ?>
+<?php endif ?>

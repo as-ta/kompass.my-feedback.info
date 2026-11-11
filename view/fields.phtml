@@ -1,0 +1,6 @@
+<?php foreach ($answers as $key => $answer): ?>
+    <?php foreach ((array) $answer as $value): ?>
+        <input type="hidden" name="<?= $this->escapeHtmlAttr($key . (is_array($answer) ? '[]' : '')) ?>"
+               value="<?= $this->escapeHtmlAttr($value) ?>">
+    <?php endforeach ?>
+<?php endforeach ?>

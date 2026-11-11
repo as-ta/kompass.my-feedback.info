@@ -1,0 +1,51 @@
+<section class="card recommendation" aria-labelledby="recommendation">
+    <p class="eyebrow">Empfehlung · Wizard abgeschlossen</p>
+    <h1 id="recommendation"><?= $this->escapeHtml($survey['title']) ?></h1>
+    <p class="intro"><?= $this->escapeHtml($survey['why']) ?></p>
+
+    <?= $this->partial('wizard/combined', ['included' => $included, 'separate' => $separate]) ?>
+
+    <section class="invitation" aria-labelledby="invitation">
+        <h2 id="invitation">So gehen Sie bei der Befragung vor</h2>
+        <p><?= $this->escapeHtml($audience) ?></p>
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $review + ['guide' => '1']])) ?>">Anleitung zur Befragung ansehen</a>
+    </section>
+
+    <?php if ($longSurvey): ?>
+        <?= $this->partial('wizard/notice', [
+            'key' => 'length:' . hash('sha256', serialize($answers)) . ':' . implode(',', array_keys($selected)),
+            'hidden' => false,
+            'title' => 'Lieber eins nach dem anderen.',
+            'message' => 'Ein kurzer Fragebogen ist leichter bis zum Ende zu beantworten. Unter „Zusatzfragen ändern“ können Sie den Bogen kürzen.',
+            'showLabel' => 'Hinweis zur Fragenzahl anzeigen',
+        ]) ?>
+    <?php endif ?>
+
+    <details class="preview-toggle">
+        <summary><span class="show-preview">Fragebogenvorschau öffnen</span><span class="hide-preview">Fragebogenvorschau schließen</span>
+            <small><?= count($questions) + (int) isset($selected['comment']) ?> Fragen</small>
+        </summary>
+        <section class="preview" aria-labelledby="preview">
+            <p class="eyebrow">Vorschau · Sicht Ihrer Befragten</p>
+            <h2 id="preview">So sieht Ihr Fragebogen aus</h2>
+            <p class="detail">Probieren Sie die Fragen aus. In dieser Vorschau wird nichts gespeichert.</p>
+            <?= $this->partial('wizard/questions', ['questions' => $questions, 'comment' => $selected['comment']['text'] ?? null]) ?>
+        </section>
+    </details>
+
+    <div class="actions recommendation-actions">
+        <?php if ($draftKey !== null): ?>
+            <form method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'save']])) ?>">
+                <input type="hidden" name="draft" value="<?= $this->escapeHtmlAttr($draftKey) ?>">
+                <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($draftCsrf) ?>">
+                <button type="submit" aria-describedby="draft-action-hint">Fragebogen übernehmen <span aria-hidden="true">→</span></button>
+            </form>
+        <?php endif ?>
+        <a class="secondary" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $answers + ['editing' => '1', 'extras' => array_keys($selected)]])) ?>">Zusatzfragen ändern</a>
+        <a class="restart-link" href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Neu starten</a>
+    </div>
+    <?php if ($draftKey !== null): ?>
+        <p id="draft-action-hint" class="detail">Der Fragebogen wird als Entwurf in Ihrem Konto gespeichert.</p>
+    <?php endif ?>
+    <?= $this->partial('wizard/contact-link') ?>
+</section>

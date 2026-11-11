@@ -1,0 +1,30 @@
+<section class="card" aria-labelledby="guide">
+    <p class="eyebrow">Anleitung zur Durchführung</p>
+    <h1 id="guide">So führen Sie Ihre Befragung durch</h1>
+    <p class="intro"><?= $this->escapeHtml($survey['distribution']) ?></p>
+    <ol class="guide-list">
+        <li>
+            <strong>Wählen Sie aus, wen Sie wann fragen möchten.</strong>
+            <p>Legen Sie vorab fest, wer die Einladung bekommt und bis wann Antworten möglich sein sollen. Laden Sie vergleichbare Personen möglichst zum gleichen Zeitpunkt nach ihrem Einkauf, Termin oder Kontakt ein.</p>
+        </li>
+        <li>
+            <strong>Wählen Sie einen Einladungsweg.</strong>
+            <?php if ($main === 'employees'): ?>
+                <p>Nutzen Sie zum Beispiel eine interne E-Mail oder das Intranet. Für Mitarbeiter ohne eigenen Rechner eignet sich ein QR-Code an einem zugänglichen Ort. Geben Sie Zeit zum Antworten und erklären Sie, wer die Antworten sehen kann.</p>
+            <?php else: ?>
+                <p>Wenn Sie die Personen direkt erreichen können, senden Sie ihnen den Befragungslink per E-Mail. Vor Ort können Sie einen QR-Code auf eine Karte, einen Aushang oder einen Kassenbeleg drucken. An einem Tablet können Kunden direkt antworten. Stellen Sie es so auf, dass niemand beim Antworten zuschaut.</p>
+            <?php endif ?>
+        </li>
+        <li>
+            <strong>Schreiben Sie eine kurze Einladung.</strong>
+            <p>Erklären Sie, worum es geht, wofür Sie die Antworten nutzen und bis wann die Teilnahme möglich ist. Testen Sie den Link oder QR-Code vorher selbst auf einem Handy.</p>
+        </li>
+        <li>
+            <strong>Planen Sie den Abschluss.</strong>
+            <p>Wenn Sie direkt eingeladen haben, können Sie einmal freundlich erinnern. Halten Sie fest, wen Sie eingeladen haben, über welchen Weg die Antworten kamen und wie lange die Befragung lief.</p>
+        </li>
+    </ol>
+    <div class="actions">
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $review])) ?>">Zurück zur Empfehlung</a>
+    </div>
+</section>

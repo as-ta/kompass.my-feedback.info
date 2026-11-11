@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>myFeedback Kompass</title>
+    <link rel="icon" type="image/svg+xml" href="<?= $this->escapeHtmlAttr($this->basePath('/icon-kompass.svg')) ?>">
+    <link rel="stylesheet" href="<?= $this->escapeHtmlAttr($this->basePath('/wizard.css') . '?v=' . filemtime(dirname(__DIR__) . '/public/wizard.css')) ?>">
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/wizard.js') . '?v=' . filemtime(dirname(__DIR__) . '/public/wizard.js')) ?>" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="shell brand">
+            <a href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>" aria-label="myFeedback Kompass · Zur Startseite">
+                <img src="<?= $this->escapeHtmlAttr($this->basePath('/logo-kompass.svg')) ?>" alt="myFeedback Kompass" width="390" height="75">
+            </a>
+            <p class="brand-claim">Sie kennen Ihr Anliegen. Wir kennen die Fragen</p>
+            <nav class="account-nav" aria-label="Seitennavigation">
+                <a href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Zum Kompass</a>
+                <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])) ?>">FAQ</a>
+                <?php if ($this->accountEnabled && !$this->accountWorkspace && !$this->wizardWorkspace): ?>
+                    <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'login']])) ?>">Anmelden</a>
+                <?php endif ?>
+            </nav>
+        </div>
+    </header>
+    <main class="shell main<?= ($this->accountWorkspace || $this->wizardWorkspace) ? ' account-shell' : '' ?>">
+        <?php if ($this->wizardWorkspace): ?>
+            <div class="account-workspace">
+                <?= $this->partial('wizard/workspace-nav', ['current' => 'new', 'csrf' => $this->workspaceCsrf]) ?>
+                <div class="wizard-workspace-content"><?= $this->content ?></div>
+            </div>
+        <?php else: ?>
+            <?= $this->content ?>
+        <?php endif ?>
+    </main>
+</body>
+</html>

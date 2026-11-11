@@ -1,0 +1,42 @@
+<?php foreach ($questions as $number => $question): ?>
+    <?php $stars = !empty($question['stars']); ?>
+    <?php $name = !empty($participation) ? 'answer-' . $question['id'] : 'preview-' . $number; ?>
+    <fieldset class="options <?= isset($question['ends']) ? 'scale' : '' ?>">
+        <legend><?= $this->escapeHtml($question['text']) ?></legend>
+        <?php if (isset($question['ends'])): ?>
+            <div class="scale-ends" id="scale-<?= $number ?>">
+                <span><?= $this->escapeHtml($question['ends'][0]) ?></span>
+                <span><?= $this->escapeHtml($question['ends'][1]) ?></span>
+            </div>
+        <?php endif ?>
+        <div class="preview-options<?= $stars ? ' star-options' : '' ?>">
+            <?php foreach ($question['options'] as $index => $option): ?>
+                <?php $value = !empty($participation) ? (string) $question['option_ids'][$index] : $option; ?>
+                <label class="option">
+                    <input type="radio" name="<?= $this->escapeHtmlAttr($name) ?>" value="<?= $this->escapeHtmlAttr($value) ?>"
+                           <?= !empty($participation) ? 'required' : '' ?>
+                           <?= !empty($participation) && (string) ($values[$question['id']] ?? '') === $value ? 'checked' : '' ?>
+                           <?= isset($question['ends']) ? 'aria-describedby="scale-' . $number . '"' : '' ?>>
+                    <?php if ($stars): ?>
+                        <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="m12 2 3.1 6.3 7 .9-5.1 5 1.2 7L12 18l-6.2 3.2 1.2-7-5.1-5 7-.9z"/>
+                        </svg>
+                        <span class="rating-label"><?= $this->escapeHtml($option) ?> <?= $option === '1' ? 'Stern' : 'Sterne' ?></span>
+                    <?php else: ?>
+                        <span><?= $this->escapeHtml($option) ?></span>
+                    <?php endif ?>
+                </label>
+            <?php endforeach ?>
+        </div>
+    </fieldset>
+<?php endforeach ?>
+
+<?php if ($comment !== null): ?>
+    <div class="preview-comment">
+        <label for="preview-comment">
+            <?= $this->escapeHtml($comment) ?>
+            <span class="detail">Freiwillige Antwort</span>
+        </label>
+        <textarea id="preview-comment" rows="3"<?= !empty($participation) ? ' name="comment" maxlength="4000"' : '' ?>><?= $this->escapeHtml($values['comment'] ?? '') ?></textarea>
+    </div>
+<?php endif ?>

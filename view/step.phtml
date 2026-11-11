@@ -1,0 +1,79 @@
+<?php
+$number = count($answers) + 1;
+$isGoal = $stepId === 'goal';
+$checkedGoals = $goals !== [] ? $goals : (is_array($selected) ? $selected : []);
+$mixedStaff = count($checkedGoals) > 1 && in_array('employees', $checkedGoals, true);
+$isCheckboxStep = isset($step['checkboxes']);
+$choices = $step['checkboxes'] ?? $step['options'];
+$checked = $isGoal ? $checkedGoals : (is_string($selected)
+    ? ($step['options'][$selected]['selection'] ?? explode('-', $selected))
+    : (array) $selected);
+$url = $this->url('wizard');
+$backUrl = $this->url('wizard', [], ['query' => $back]);
+?>
+<section class="card" aria-labelledby="question">
+    <p class="eyebrow">Schritt <?= $number ?></p>
+    <h1 id="question"><?= $this->escapeHtml($step['title']) ?></h1>
+    <p class="intro" id="hint"><?= $this->escapeHtml($step['hint']) ?></p>
+
+    <?php if ($invalid): ?>
+        <p class="error" role="alert">
+            <?php if ($isGoal && $mixedStaff): ?>
+                Mitarbeiter und Kunden sind unterschiedliche Zielgruppen. Bitte wählen Sie für Ihre Mitarbeiter eine eigene Befragung.
+            <?php elseif ($isGoal): ?>
+                Wählen Sie bis zu drei Kundenthemen oder ausschließlich die Mitarbeiterbefragung.
+            <?php elseif ($isCheckboxStep): ?>
+                Bitte wählen Sie mindestens <?= $stepId === 'metric' ? 'eine Frage' : 'ein Thema' ?>.
+            <?php else: ?>
+                Bitte wählen Sie eine der angezeigten Antworten.
+            <?php endif ?>
+        </p>
+    <?php endif ?>
+
+    <form method="get" action="<?= $this->escapeHtmlAttr($url) ?>"<?= $isGoal ? ' data-goals' : '' ?>>
+        <?= $this->partial('wizard/fields', ['answers' => $answers]) ?>
+        <?php if ($isGoal): ?>
+            <input type="hidden" name="choose-goals" value="1">
+        <?php elseif ($isCheckboxStep): ?>
+            <input type="hidden" name="<?= $this->escapeHtmlAttr('choose-' . $stepId) ?>" value="1">
+        <?php endif ?>
+
+        <fieldset class="options" aria-labelledby="question" aria-describedby="hint">
+            <?php foreach ($choices as $value => $option): ?>
+                <label class="option">
+                    <?php if ($isGoal || $isCheckboxStep): ?>
+                        <input type="checkbox" name="<?= $this->escapeHtmlAttr($stepId) ?>[]" value="<?= $this->escapeHtmlAttr($value) ?>"<?= in_array($value, $checked, true) ? ' checked' : '' ?>>
+                    <?php else: ?>
+                        <input type="radio" name="<?= $this->escapeHtmlAttr($stepId) ?>"
+                               value="<?= $this->escapeHtmlAttr($value) ?>"<?= $selected === $value ? ' checked' : '' ?> required>
+                    <?php endif ?>
+                    <span>
+                        <strong><?= $this->escapeHtml($option['label']) ?></strong>
+                        <?php if (isset($option['hint'])): ?>
+                            <span class="detail"><?= $this->escapeHtml($option['hint']) ?></span>
+                        <?php endif ?>
+                    </span>
+                </label>
+            <?php endforeach ?>
+        </fieldset>
+
+        <?php if ($isGoal): ?>
+            <?= $this->partial('wizard/notice', [
+                'key' => 'goals:' . implode(',', $checkedGoals),
+                'hidden' => count($checkedGoals) < 2,
+                'title' => 'Lieber eins nach dem anderen.',
+                'message' => 'Wählen Sie als Nächstes, was Sie am dringendsten wissen möchten. Ein kurzer Fragebogen ist leichter bis zum Ende zu beantworten.',
+                'showLabel' => 'Hinweis zur Themenauswahl anzeigen',
+            ]) ?>
+            <p class="error" data-goal-error role="alert" hidden></p>
+        <?php endif ?>
+
+        <div class="actions">
+            <?php if ($answers !== []): ?>
+                <a href="<?= $this->escapeHtmlAttr($backUrl) ?>">Zurück</a>
+            <?php endif ?>
+            <button type="submit">Weiter <span aria-hidden="true">→</span></button>
+        </div>
+    </form>
+    <?= $this->partial('wizard/contact-link') ?>
+</section>

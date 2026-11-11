@@ -1,0 +1,371 @@
+<?php $accountUrl = static fn (string $action, array $params = []): array => ['query' => ['account' => $action] + $params]; ?>
+<?php $workspace = in_array($page, ['list', 'draft', 'delete', 'missing', 'billing', 'invoices', 'forbidden'], true); ?>
+<?php if ($workspace): ?>
+<div class="account-workspace">
+    <?= $this->partial('wizard/workspace-nav', ['current' => in_array($page, ['billing', 'invoices'], true) ? $page : 'list', 'setup' => $billingSetup ?? false, 'csrf' => $csrf, 'bookkeepingAdmin' => $bookkeepingAdmin ?? false]) ?>
+<?php endif ?>
+<section class="card<?= $workspace ? ' workspace-content' : '' ?>">
+    <?php if (!$workspace): ?>
+        <p class="eyebrow">Ihr Kompass-Konto</p>
+    <?php endif ?>
+    <?php if ($page === 'login'): ?>
+        <?php if ($sent): ?>
+            <h1>Bitte prüfen Sie Ihr E-Mail-Postfach</h1>
+            <div class="login-confirmation" role="status">
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2"/>
+                    <path d="m3 7 9 6 9-6"/>
+                </svg>
+                <div>
+                    <h2>Anmeldelink versendet</h2>
+                    <p>Öffnen Sie die E-Mail von myFeedback Kompass und klicken Sie auf den Anmeldelink.</p>
+                    <p>Der Link ist <strong>20 Minuten gültig</strong>. Öffnen Sie ihn in dem Browser, in dem Sie ihn angefordert haben.</p>
+                </div>
+            </div>
+            <?php if ($pendingDraft): ?>
+                <p>Nach der Anmeldung finden Sie Ihren Fragebogen unter „Meine Befragungen“. Beim ersten Mal ergänzen Sie vorher Ihre Rechnungsdaten.</p>
+            <?php endif ?>
+            <p class="detail">Noch keine E-Mail erhalten? Prüfen Sie auch Ihren Spam-Ordner.</p>
+            <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('login'))) ?>">E-Mail-Adresse ändern oder Link erneut anfordern</a>
+        <?php else: ?>
+            <h1>Anmelden oder Konto erstellen</h1>
+            <p class="intro">Geben Sie Ihre E-Mail-Adresse ein. Sie erhalten einen Link zur Anmeldung. Beim ersten Mal entsteht dabei Ihr Konto.</p>
+            <?php if ($pendingDraft): ?>
+                <p>Nach der Anmeldung finden Sie den Fragebogen unter „Meine Befragungen“. Beim ersten Mal ergänzen Sie vorher Ihre Rechnungsdaten.</p>
+            <?php endif ?>
+            <?php if ($error !== ''): ?>
+                <p class="error" role="alert"><?= $this->escapeHtml($error) ?></p>
+            <?php endif ?>
+            <form class="contact-form" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('login'))) ?>">
+                <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+                <label for="account-email">Ihre E-Mail-Adresse</label>
+                <input id="account-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+                <button type="submit">Anmeldelink anfordern</button>
+            </form>
+        <?php endif ?>
+    <?php elseif ($page === 'verify'): ?>
+        <h1>Sie werden angemeldet</h1>
+        <p class="intro" role="status">Einen Moment bitte. Sie werden automatisch weitergeleitet.</p>
+        <form data-login-verify method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('verify'))) ?>">
+            <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+            <input type="hidden" name="token" value="<?= $this->escapeHtmlAttr($token) ?>">
+            <button type="submit">Anmeldung fortsetzen</button>
+        </form>
+    <?php elseif ($page === 'invoices'): ?>
+        <h1>Meine Rechnungen</h1>
+        <p class="intro">Hier finden Sie die Rechnungen zu Ihren gebuchten Befragungen und Verlängerungen.</p>
+        <?php if ($invoices === []): ?>
+            <p class="workspace-empty">Bisher liegen keine bestätigten Zahlungen vor. Nach einer bestätigten Zahlung finden Sie die zugehörige Buchung hier.</p>
+        <?php else: ?>
+            <ul class="invoice-list">
+                <?php foreach ($invoices as $invoice): ?>
+                    <?php
+                        $hasInvoice = $invoice['invoice_number'] !== null;
+                        $date = (new DateTimeImmutable($invoice['issued_at'] ?? $invoice['paid_at'], new DateTimeZone('UTC')))
+                            ->setTimezone(new DateTimeZone('Europe/Berlin'));
+                    ?>
+                    <li>
+                        <div class="invoice-list-heading">
+                            <h2><?= $hasInvoice ? $this->escapeHtml($invoice['invoice_number']) : 'Rechnung noch nicht verfügbar' ?></h2>
+                            <strong class="invoice-list-amount"><?= $this->escapeHtml(str_replace('.', ',', $invoice['amount'])) ?> €</strong>
+                        </div>
+                        <p class="detail"><?= $hasInvoice ? 'Rechnungsdatum' : 'Bezahlt am' ?> <time datetime="<?= $date->format(DATE_ATOM) ?>"><?= $date->format('d.m.Y') ?></time> · Buchung <?= (int) $invoice['period_number'] ?></p>
+                        <p><a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('draft', ['id' => $invoice['poll_id']]))) ?>"><?= $this->escapeHtml($invoice['title']) ?></a></p>
+                        <?php if ($hasInvoice): ?>
+                            <a class="secondary" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('receipt', ['period' => $invoice['period_id']]))) ?>">Rechnung als PDF herunterladen</a>
+                        <?php else: ?>
+                            <p class="detail">Die Zahlung ist bestätigt. Für diese Buchung liegt noch keine Rechnung vor.</p>
+                        <?php endif ?>
+                    </li>
+                <?php endforeach ?>
+            </ul>
+        <?php endif ?>
+    <?php elseif ($page === 'billing'): ?>
+        <h1><?= $billingSetup ? 'Rechnungsdaten ergänzen' : 'Rechnungsdaten' ?></h1>
+        <p class="intro">Diese Angaben verwenden wir für Ihre Rechnungen. Wenn die Rechnung an ein Unternehmen gehen soll, tragen Sie dessen vollständigen Namen und Anschrift ein.</p>
+        <p class="detail">E-Mail-Adresse Ihres Kontos <strong><?= $this->escapeHtml($billingEmail) ?></strong></p>
+        <?php if ($billingSaved): ?>
+            <p class="success" role="status">Ihre Rechnungsdaten wurden gespeichert.</p>
+        <?php endif ?>
+        <?php if ($billingErrors !== []): ?>
+            <p class="error" role="alert">Bitte prüfen Sie die markierten Felder.</p>
+        <?php endif ?>
+        <form class="contact-form billing-form" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('billing'))) ?>">
+            <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+            <?php foreach ($billingFields as $name => $field): ?>
+                <?php $fieldId = 'billing-' . $name; ?>
+                <div class="billing-field<?= !empty($field['wide']) ? ' billing-wide' : '' ?>">
+                    <label for="<?= $this->escapeHtmlAttr($fieldId) ?>">
+                        <?= $this->escapeHtml($field['label']) ?>
+                        <?php if (empty($field['required'])): ?><span class="detail"> (optional)</span><?php endif ?>
+                    </label>
+                    <input id="<?= $this->escapeHtmlAttr($fieldId) ?>" name="<?= $this->escapeHtmlAttr($name) ?>"
+                           type="<?= $this->escapeHtmlAttr($field['type'] ?? 'text') ?>" maxlength="<?= (int) $field['length'] ?>"
+                           value="<?= $this->escapeHtmlAttr($billingValues[$name] ?? '') ?>"
+                           <?= isset($field['autocomplete']) ? 'autocomplete="' . $this->escapeHtmlAttr($field['autocomplete']) . '"' : '' ?>
+                           <?= !empty($field['required']) ? 'required' : '' ?>
+                           <?= isset($billingErrors[$name]) ? 'aria-invalid="true" aria-describedby="' . $this->escapeHtmlAttr($fieldId . '-error') . '"' : '' ?>>
+                    <?php if (isset($billingErrors[$name])): ?>
+                        <p class="error" id="<?= $this->escapeHtmlAttr($fieldId . '-error') ?>"><?= $this->escapeHtml($billingErrors[$name]) ?></p>
+                    <?php endif ?>
+                </div>
+            <?php endforeach ?>
+            <div class="actions billing-wide">
+                <button type="submit"><?= $billingSetup ? 'Speichern und weiter' : 'Änderungen speichern' ?></button>
+            </div>
+        </form>
+    <?php elseif ($page === 'list'): ?>
+        <div class="workspace-heading">
+            <div>
+                <h1>Meine Befragungen</h1>
+                <p class="intro">Hier finden Sie Ihre gespeicherten Fragebögen.</p>
+            </div>
+            <a class="workspace-create" href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Neue Befragung <span aria-hidden="true">→</span></a>
+        </div>
+        <?php if ($saved !== null): ?>
+            <p class="workspace-saved" role="status">Der Fragebogen wurde als Entwurf gespeichert.</p>
+        <?php endif ?>
+        <?php if ($deleted): ?>
+            <p class="workspace-saved" role="status">Der Entwurf wurde gelöscht.</p>
+        <?php endif ?>
+        <?php if ($polls === []): ?>
+            <p class="workspace-empty">Erstellen Sie Ihren ersten Fragebogen im Kompass. Sobald Sie ihn aus der Vorschau übernehmen, erscheint er hier.</p>
+        <?php else: ?>
+            <ul class="poll-list">
+                <?php foreach ($polls as $item): ?>
+                    <?php
+                        $isNew = (int) $item['id'] === $saved;
+                        $itemState = \MyFeedback\Wizard\PollLifecycle::status($item);
+                        $itemUrl = $this->url('wizard', [], $accountUrl('draft', ['id' => $item['id']]));
+                    ?>
+                    <li<?= $isNew ? ' class="poll-new"' : '' ?>>
+                        <div class="poll-card-heading">
+                            <?= $this->partial('wizard/poll-status', ['state' => $itemState]) ?>
+                            <details class="poll-card-menu" name="poll-card-options">
+                                <summary aria-label="Optionen für Befragung Nr. <?= (int) $item['id'] ?>" title="Weitere Optionen">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                                        <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>
+                                    </svg>
+                                </summary>
+                                <nav aria-label="Optionen für Befragung Nr. <?= (int) $item['id'] ?>">
+                                    <a href="<?= $this->escapeHtmlAttr($itemUrl) ?>">Fragebogen ansehen</a>
+                                    <a href="<?= $this->escapeHtmlAttr($itemUrl . '#poll-workflow') ?>"><?= match ($itemState) {
+                                        'ready' => 'Befragung starten',
+                                        'active' => 'Laufzeit ansehen',
+                                        'closed' => 'Verlängerung und Zahlung',
+                                        default => 'Freischaltung und Zahlung',
+                                    } ?></a>
+                                    <a href="<?= $this->escapeHtmlAttr($itemUrl . '#participation-link') ?>">Teilnahmelink</a>
+                                    <a href="<?= $this->escapeHtmlAttr($itemUrl . '#saved-preview') ?>">Vorschau</a>
+                                    <?php if ($item['deletable']): ?>
+                                        <a class="poll-delete-link" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('delete', ['id' => $item['id']]))) ?>">Entwurf löschen</a>
+                                    <?php endif ?>
+                                </nav>
+                            </details>
+                        </div>
+                        <?php if (!empty($item['payment_pending'])): ?><p class="detail">PayPal-Zahlung in Prüfung</p><?php endif ?>
+                        <h2><?= $this->escapeHtml($item['title']) ?></h2>
+                        <?php $created = new DateTimeImmutable($item['created_at']); ?>
+                        <p class="detail">Nr. <?= (int) $item['id'] ?> · Angelegt am <time datetime="<?= $created->format('Y-m-d\TH:i:s') ?>"><?= $created->format('d.m.Y') ?> um <?= $created->format('H:i') ?> Uhr</time></p>
+                        <div class="poll-list-actions">
+                            <?php if ($paymentEnabled && in_array($itemState, ['draft', 'closed'], true)): ?>
+                                <?php $itemPrice = isset($item['paid_at']) ? $price : ($item['period_amount'] ?? $price); ?>
+                                <form method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('pay'))) ?>">
+                                    <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+                                    <input type="hidden" name="poll" value="<?= (int) $item['id'] ?>">
+                                    <input type="hidden" name="period" value="<?= (int) ($item['period_id'] ?? 0) ?>">
+                                    <button type="submit"><?= match (true) {
+                                        !empty($item['payment_pending']) => 'Zahlungsstatus prüfen',
+                                        isset($item['order_id']) && !isset($item['paid_at']) => 'Zahlung fortsetzen',
+                                        default => ($itemState === 'closed' ? 'Weitere 4 Wochen buchen' : 'Mit PayPal bezahlen') . ' · ' . str_replace('.', ',', $itemPrice) . ' €',
+                                    } ?></button>
+                                </form>
+                            <?php elseif ($itemState === 'ready'): ?>
+                                <a class="workspace-create" href="<?= $this->escapeHtmlAttr($itemUrl . '#poll-workflow') ?>">Befragung starten</a>
+                            <?php endif ?>
+                            <a href="<?= $this->escapeHtmlAttr($itemUrl) ?>">Fragebogen ansehen <span aria-hidden="true">→</span></a>
+                        </div>
+                    </li>
+                <?php endforeach ?>
+            </ul>
+        <?php endif ?>
+    <?php elseif ($page === 'delete'): ?>
+        <h1>Entwurf löschen</h1>
+        <p><strong><?= $this->escapeHtml($title) ?></strong></p>
+        <?php if ($blocked): ?>
+            <p>Dieser Entwurf kann derzeit nicht gelöscht werden. Bei einer laufenden PayPal-Zahlung prüfen Sie den Zahlungsstatus im Fragebogen.</p>
+            <a class="secondary" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('draft', ['id' => $pollId]))) ?>">Zum Fragebogen</a>
+        <?php else: ?>
+            <p>Der Fragebogen wird dauerhaft gelöscht. Sein Teilnahmelink ist danach ungültig.</p>
+            <form class="actions poll-delete-confirmation" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('delete', ['id' => $pollId]))) ?>">
+                <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+                <a class="secondary" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('list'))) ?>">Abbrechen</a>
+                <button type="submit">Entwurf endgültig löschen</button>
+            </form>
+        <?php endif ?>
+    <?php elseif ($page === 'draft'): ?>
+        <header class="poll-detail-heading">
+            <a class="detail" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('list'))) ?>">← Meine Befragungen</a>
+            <div class="poll-detail-meta"><span>Befragung Nr. <?= (int) $pollId ?></span> <?= $this->partial('wizard/poll-status', ['state' => $state]) ?></div>
+            <h1><?= $this->escapeHtml($poll['title']) ?></h1>
+            <p><?= $this->escapeHtml($poll['purpose']) ?></p>
+            <p class="detail"><strong>Zielgruppe</strong> · <?= $this->escapeHtml($poll['audience']) ?></p>
+        </header>
+        <nav class="poll-detail-nav" aria-label="Bereiche der Befragung">
+            <a href="#poll-workflow">Freischaltung</a>
+            <a href="#participation-link">Teilnahmelink</a>
+            <a href="#saved-preview">Vorschau</a>
+            <?php if ($receipts !== []): ?><a href="#test-receipts">Rechnungen</a><?php endif ?>
+        </nav>
+        <div class="poll-detail-grid">
+            <section class="poll-detail-panel" aria-labelledby="poll-workflow">
+
+                <div class="poll-payment-heading">
+                    <h2 id="poll-workflow">Freischaltung</h2>
+                    <?php if ($paymentEnabled): ?>
+                        <details class="payment-test-info">
+                            <summary aria-label="Informationen zum Testbetrieb" title="Informationen zum Testbetrieb">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/>
+                                </svg>
+                            </summary>
+                            <div class="payment-test-tooltip">
+                                <strong>PayPal-Testbetrieb</strong>
+                                <p>Die Zahlung läuft in der PayPal-Sandbox mit Spielgeld. Es wird kein echtes Geld abgebucht.</p>
+                                <p>Für die Anmeldung bei PayPal können Sie dieses Sandbox-Käuferkonto verwenden.</p>
+                                <dl>
+                                    <dt>E-Mail-Adresse</dt><dd>info@my-feedback.info</dd>
+                                    <dt>Passwort</dt><dd>Test!2026</dd>
+                                </dl>
+                            </div>
+                        </details>
+                    <?php endif ?>
+                </div>
+                <?php if ($state === 'ready'): ?>
+                    <p>Die Zahlung ist bestätigt. <strong>Sie bestimmen, wann es losgeht.</strong> Die vier Wochen beginnen erst, wenn Sie die Befragung starten.</p>
+                    <form class="actions" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('start'))) ?>">
+                        <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+                        <input type="hidden" name="poll" value="<?= $pollId ?>">
+                        <input type="hidden" name="period" value="<?= (int) $payment['id'] ?>">
+                        <button type="submit">Befragung für 4 Wochen starten</button>
+                    </form>
+                <?php elseif ($state === 'active'): ?>
+                    <?php $ends = (new DateTimeImmutable($payment['ends_at'], new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Europe/Berlin')); ?>
+                    <p>Teilnahme möglich bis <time datetime="<?= $ends->format(DATE_ATOM) ?>"><?= $ends->format('d.m.Y \u\m H:i') ?> Uhr</time>.</p>
+                <?php endif ?>
+                <?php if ($paymentEnabled && in_array($state, ['draft', 'closed'], true)): ?>
+                    <div class="poll-payment">
+                        <div class="paypal-payment-brand">
+                            <h3><?= $state === 'closed' ? 'Weitere 4 Wochen buchen' : '4 Wochen Teilnahme buchen' ?></h3>
+                            <img src="<?= $this->escapeHtmlAttr($this->basePath('/logo-paypal.svg')) ?>" alt="PayPal" width="88" height="24">
+                        </div>
+                        <p class="poll-payment-price"><?= $this->escapeHtml(str_replace('.', ',', $price)) ?> €</p>
+                        <p>Zahlung über PayPal. Eine Gastzahlung per Kredit- oder Debitkarte ist möglich, wenn PayPal sie Ihnen anbietet.</p>
+                        <p><strong>Sie bestimmen den Start.</strong> Nach der Zahlung starten Sie die vier Wochen per Klick, sobald Sie bereit sind.</p>
+                        <p><a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])) ?>">Fragen zu Start und Laufzeit</a></p>
+                        <?php $autoComplete = $paymentReturned && !$paymentCancelled; ?>
+                        <?php $message = match (true) {
+                            $autoComplete => 'Die PayPal-Zahlung wird geprüft.',
+                            $paymentCancelled => 'Sie können die Zahlung fortsetzen.',
+                            $paymentNotice === 'unavailable' => 'PayPal konnte die Zahlung gerade nicht bestätigen. Versuchen Sie es erneut.',
+                            $paymentNotice === 'expired' => 'Die PayPal-Bestellung ist abgelaufen. Sie können eine neue Zahlung starten.',
+                            $paymentNotice === 'pending_merchant' => 'Der Zahlungsempfänger muss die Zahlung bei PayPal noch annehmen oder bestätigen. Prüfen Sie anschließend hier erneut den Zahlungsstatus.',
+                            $paymentNotice === 'review' => 'PayPal hat die Zahlung nicht als abgeschlossen gemeldet.',
+                            $paymentNotice === 'pending' || !empty($payment['payment_pending']) => 'Die Zahlung ist bei PayPal noch offen. Sie können den Status später erneut abrufen.',
+                            default => '',
+                        }; ?>
+                        <?php if ($message !== ''): ?>
+                            <div class="poll-payment-notice" role="status">
+                                <p><?= $this->escapeHtml($message) ?></p>
+                                <?php if (($captureStatus ?? '') !== ''): ?>
+                                    <p class="detail">
+                                        PayPal-Status <code><?= $this->escapeHtml($captureStatus) ?></code>
+                                        <?php if (($captureReason ?? '') !== ''): ?>
+                                            · Grund <code><?= $this->escapeHtml($captureReason) ?></code>
+                                        <?php else: ?>
+                                            · PayPal hat keinen Grund angegeben.
+                                        <?php endif ?>
+                                    </p>
+                                <?php endif ?>
+                            </div>
+                        <?php endif ?>
+                        <form class="actions" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('pay'))) ?>"<?= $autoComplete ? ' data-paypal-return' : '' ?>>
+                            <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+                            <input type="hidden" name="poll" value="<?= $pollId ?>">
+                            <input type="hidden" name="period" value="<?= (int) ($payment['id'] ?? 0) ?>">
+                            <?php if ($autoComplete): ?>
+                                <input type="hidden" name="returned_order" value="<?= $this->escapeHtmlAttr($payment['order_id']) ?>">
+                            <?php endif ?>
+                            <button type="submit"><?= match (true) {
+                                $autoComplete => 'Zahlung prüfen',
+                                !empty($payment['payment_pending']) => 'Zahlungsstatus prüfen',
+                                isset($payment['order_id']) && !isset($payment['paid_at']) => 'Zahlung fortsetzen oder prüfen',
+                                $state === 'closed' => 'Weitere 4 Wochen mit PayPal buchen',
+                                default => 'Mit PayPal bezahlen',
+                            } ?></button>
+                        </form>
+                    </div>
+                <?php endif ?>
+                <?php if (!$paymentEnabled && in_array($state, ['draft', 'closed'], true)): ?>
+                    <p class="detail">Für diese Befragung ist derzeit keine Buchung verfügbar.</p>
+                <?php endif ?>
+            </section>
+            <section class="poll-detail-panel poll-share" aria-labelledby="participation-link">
+                <h2 id="participation-link">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                        <path d="M10 13.5a4 4 0 0 0 5.7 0l4-4A4 4 0 0 0 14 3.8l-2 2m2 4.7a4 4 0 0 0-5.7 0l-4 4A4 4 0 0 0 10 20.2l2-2"/>
+                    </svg>
+                    Teilnahmelink
+                </h2>
+                <p class="detail">Den Link können Sie vorab teilen oder auf Karten drucken. Er bleibt bei einer Verlängerung gleich.</p>
+                <label class="detail" for="poll-public-url">Adresse der Befragung</label>
+                <input class="poll-share-url" id="poll-public-url" type="url" readonly value="<?= $this->escapeHtmlAttr($participationUrl) ?>">
+                <div class="actions poll-share-actions">
+                    <button class="secondary" type="button" data-copy-poll-link hidden>Link kopieren</button>
+                    <a class="secondary" href="<?= $this->escapeHtmlAttr($participationUrl) ?>">Link öffnen ↗</a>
+                </div>
+                <p class="detail poll-copy-status" data-copy-poll-status role="status"></p>
+            </section>
+        </div>
+        <?php if ($receipts !== []): ?>
+            <section class="poll-detail-panel poll-detail-receipts" aria-labelledby="test-receipts">
+                <h2 id="test-receipts">Testrechnungen</h2>
+                <ul>
+                    <?php foreach ($receipts as $receipt): ?>
+                        <li>
+                            Buchung <?= (int) $receipt['period_number'] ?> ·
+                            <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('receipt', ['period' => $receipt['id']]))) ?>">
+                                Rechnung <?= $this->escapeHtml($receipt['invoice_number']) ?> als PDF herunterladen
+                            </a>
+                        </li>
+                    <?php endforeach ?>
+                </ul>
+            </section>
+        <?php endif ?>
+        <section class="preview" aria-labelledby="saved-preview">
+            <h2 id="saved-preview">Gespeicherte Vorschau</h2>
+            <p class="detail">Probieren Sie die Fragen aus. Die Antworten in dieser Vorschau werden nicht gespeichert.</p>
+            <?= $this->partial('wizard/questions', ['questions' => $poll['questions'], 'comment' => $poll['comment']]) ?>
+        </section>
+        <?php if ($poll['deletable']): ?>
+            <p class="poll-detail-delete"><a class="poll-delete-link" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('delete', ['id' => $pollId]))) ?>">Entwurf löschen</a></p>
+        <?php endif ?>
+    <?php elseif ($page === 'expired'): ?>
+        <h1>Anmeldelink nicht verfügbar</h1>
+        <p>Fordern Sie einen neuen Link an und öffnen Sie ihn im selben Browser.</p>
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('login'))) ?>">Neuen Link anfordern</a>
+    <?php elseif ($page === 'forbidden'): ?>
+        <h1>Zugriff nicht freigegeben</h1>
+        <p>Für Ihr Konto ist die Buchhaltungsübersicht nicht freigegeben.</p>
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('invoices'))) ?>">Zu meinen Rechnungen</a>
+    <?php elseif ($page === 'missing'): ?>
+        <h1>Entwurf nicht verfügbar</h1>
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('list'))) ?>">Zu meinen Befragungen</a>
+    <?php else: ?>
+        <h1><?= $page === 'unavailable' ? 'Das Konto ist gerade nicht verfügbar' : 'Bitte laden Sie die Seite neu' ?></h1>
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Zurück zum Kompass</a>
+    <?php endif ?>
+</section>
+<?php if ($workspace): ?>
+</div>
+<?php endif ?>

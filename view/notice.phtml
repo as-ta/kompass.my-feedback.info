@@ -1,0 +1,25 @@
+<div class="notice" data-notice="<?= $this->escapeHtmlAttr($key) ?>"<?= $hidden ? ' hidden' : '' ?>>
+    <aside class="survey-notice" data-notice-body>
+        <strong><?= $this->escapeHtml($title) ?></strong>
+        <p><?= $this->escapeHtml($message) ?></p>
+        <?php if (!empty($separate)): ?>
+            <ul class="notice-topics">
+                <?php foreach ($separate as $goal => $topic): ?>
+                    <li>
+                        <strong><?= $this->escapeHtml($topic['label']) ?></strong>
+                        <?php if (!$topic['canInclude']): ?>
+                            <p class="detail">Für die Kombination brauchen Sie dieselbe Zielgruppe und einen passenden gemeinsamen Anlass.</p>
+                        <?php endif ?>
+                        <div class="notice-topic-actions">
+                            <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $topic['edit']])) ?>"><?= $this->escapeHtml($topic['editLabel']) ?></a>
+                            <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['goal' => $goal]])) ?>"
+                               target="_blank" rel="noopener">Eigenen Fragebogen vorbereiten (neuer Tab)</a>
+                        </div>
+                    </li>
+                <?php endforeach ?>
+            </ul>
+        <?php endif ?>
+        <button type="button" class="notice-confirm" data-notice-confirm hidden>Verstanden</button>
+    </aside>
+    <button type="button" class="notice-show" data-notice-show hidden><?= $this->escapeHtml($showLabel) ?></button>
+</div>

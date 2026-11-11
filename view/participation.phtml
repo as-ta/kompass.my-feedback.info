@@ -1,0 +1,33 @@
+<section class="card">
+    <?php if ($state === 'active' && !$thanks): ?>
+        <h1><?= $this->escapeHtml($poll['title']) ?></h1>
+        <p>Bitte beantworten Sie die folgenden Fragen.</p>
+        <?php if ($error !== ''): ?>
+            <p class="error" role="alert"><?= $this->escapeHtml($error) ?></p>
+        <?php endif ?>
+        <form class="preview" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['befragung' => $token]])) ?>">
+            <input type="hidden" name="nonce" value="<?= $this->escapeHtmlAttr($nonce) ?>">
+            <input type="hidden" name="signature" value="<?= $this->escapeHtmlAttr($signature) ?>">
+            <?= $this->partial('wizard/questions', ['questions' => $poll['questions'], 'comment' => $poll['comment'], 'participation' => true, 'values' => $values]) ?>
+            <div class="actions"><button type="submit">Antworten absenden</button></div>
+        </form>
+    <?php elseif ($state === 'active'): ?>
+        <h1>Vielen Dank für Ihre Teilnahme!</h1>
+        <p>Ihre Antworten wurden gespeichert.</p>
+    <?php else: ?>
+        <h1><?= match ($state) {
+            'draft', 'ready' => 'Diese Befragung ist noch nicht gestartet',
+            'closed' => 'Diese Befragung ist abgeschlossen',
+            'unavailable' => 'Die Befragung ist gerade nicht verfügbar',
+            default => 'Befragung nicht gefunden',
+        } ?></h1>
+        <?php if (in_array($state, ['draft', 'ready'], true)): ?>
+            <p>Eine Teilnahme ist möglich, sobald die Befragung freigeschaltet wurde.</p>
+        <?php elseif ($state === 'closed'): ?>
+            <p>Der Teilnahmezeitraum ist abgelaufen.</p>
+        <?php endif ?>
+        <?php if (isset($manage)): ?>
+            <a class="secondary" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'draft', 'id' => $manage]])) ?>">Befragung verwalten</a>
+        <?php endif ?>
+    <?php endif ?>
+</section>

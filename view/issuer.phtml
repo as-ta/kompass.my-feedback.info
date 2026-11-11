@@ -1,0 +1,40 @@
+<?php $issuerUrl = fn (string $action) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action]])); ?>
+<div class="account-workspace">
+    <?= $this->partial('wizard/workspace-nav', ['current' => 'issuer', 'csrf' => $csrf, 'bookkeepingAdmin' => true]) ?>
+    <section class="card workspace-content">
+        <p class="eyebrow">Administration</p>
+        <h1>Rechnungsaussteller</h1>
+        <p class="intro">Diese Angaben werden für neu ausgestellte Rechnungen verwendet.</p>
+        <?php if ($issuerSaved): ?>
+            <p class="workspace-saved" role="status">Die Ausstellerdaten wurden gespeichert. Fehlende Rechnungen zu bestätigten Zahlungen wurden erneut geprüft. <a href="<?= $issuerUrl('bookkeeping') ?>">Zur Buchhaltung</a></p>
+        <?php endif ?>
+        <?php if ($issuerErrors !== []): ?>
+            <p class="error" role="alert">Bitte korrigieren Sie die markierten Angaben.</p>
+        <?php endif ?>
+        <form class="contact-form billing-form" method="post" action="<?= $issuerUrl('issuer') ?>">
+            <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+            <?php foreach (\MyFeedback\Wizard\InvoiceIssuer::FIELDS as $field => $options): ?>
+                <div class="billing-field">
+                    <label for="issuer-<?= $field ?>"><?= $this->escapeHtml($options['label']) ?></label>
+                    <input id="issuer-<?= $field ?>" name="<?= $field ?>" type="<?= $options['type'] ?? 'text' ?>" maxlength="<?= $options['length'] ?>" value="<?= $this->escapeHtmlAttr($issuer[$field] ?? '') ?>" required<?= isset($issuerErrors[$field]) ? ' aria-invalid="true" aria-describedby="issuer-error-' . $field . '"' : '' ?>>
+                    <?php if (isset($issuerErrors[$field])): ?>
+                        <p class="error" id="issuer-error-<?= $field ?>"><?= $this->escapeHtml($issuerErrors[$field]) ?></p>
+                    <?php endif ?>
+                </div>
+            <?php endforeach ?>
+            <div class="billing-field">
+                <label for="issuer-vat-rate">Mehrwertsteuer</label>
+                <select id="issuer-vat-rate" name="vat_rate_basis_points" required<?= isset($issuerErrors['vat_rate_basis_points']) ? ' aria-invalid="true" aria-describedby="issuer-error-vat-rate"' : '' ?>>
+                    <option value="">Bitte wählen</option>
+                    <option value="1900"<?= (string) ($issuer['vat_rate_basis_points'] ?? '') === '1900' ? ' selected' : '' ?>>19 %</option>
+                    <option value="700"<?= (string) ($issuer['vat_rate_basis_points'] ?? '') === '700' ? ' selected' : '' ?>>7 %</option>
+                </select>
+                <?php if (isset($issuerErrors['vat_rate_basis_points'])): ?>
+                    <p class="error" id="issuer-error-vat-rate"><?= $this->escapeHtml($issuerErrors['vat_rate_basis_points']) ?></p>
+                <?php endif ?>
+            </div>
+            <p class="detail billing-wide">Die Rechnungsnummer wird automatisch vergeben. Nächste Testnummer <strong>XR-TEST-<?= str_pad((string) max(1, (int) ($issuer['next_test_number'] ?? 1)), 6, '0', STR_PAD_LEFT) ?></strong>.</p>
+            <div class="actions billing-wide"><button type="submit">Ausstellerdaten speichern</button></div>
+        </form>
+    </section>
+</div>
