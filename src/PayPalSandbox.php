@@ -26,13 +26,13 @@ final class PayPalSandbox
             && $settings['amount'] !== '0.00';
     }
 
-    public function create(string $key, int $poll, string $amount, string $returnUrl): array
+    public function create(string $key, int $poll, string $amount, string $returnUrl, string $title = ''): array
     {
         return $this->api('/v2/checkout/orders', 'POST', [
             'intent' => 'CAPTURE',
             'purchase_units' => [[
                 'reference_id' => 'poll-' . $poll,
-                'description' => 'myFeedback Kompass – Befragung Nr. ' . $poll,
+                'description' => self::description($title),
                 'amount' => ['currency_code' => 'EUR', 'value' => $amount],
             ]],
             'payment_source' => ['paypal' => ['experience_context' => [
@@ -42,6 +42,86 @@ final class PayPalSandbox
                 'cancel_url' => $returnUrl . '&cancel=1',
             ]]],
         ], 'o-' . $key);
+    }
+
+    /**
+     * Bestellung für die PayPal-Buttons. Ohne festgelegte Zahlungsquelle, damit PayPal
+     * im Popup auch Karte oder Lastschrift anbieten kann.
+     */
+    public function createForButtons(string $key, int $poll, string $amount, string $title = ''): array
+    {
+        return $this->api('/v2/checkout/orders', 'POST', [
+            'intent' => 'CAPTURE',
+            'purchase_units' => [[
+                'reference_id' => 'poll-' . $poll,
+                'description' => self::description($title),
+                'amount' => ['currency_code' => 'EUR', 'value' => $amount],
+            ]],
+            'application_context' => [
+                'shipping_preference' => 'NO_SHIPPING',
+                'brand_name' => 'myFeedback Kompass',
+            ],
+        ], 'b-' . $key);
+    }
+
+    /** Text, den der Kunde in seinem PayPal-Konto sieht. Ohne interne Nummer, höchstens 127 Zeichen. */
+    private static function description(string $title): string
+    {
+        $text = 'myFeedback Kompass – ' . (trim($title) !== '' ? trim($title) : 'Befragung');
+        return mb_strlen($text) > 127 ? mb_substr($text, 0, 126) . '…' : $text;
+    }
+
+    /** Legt das Abo-Produkt und einen Monatsplan an. Gibt [product_id, plan_id] zurück. */
+    public function createPlan(string $amount): array
+    {
+        $product = $this->api('/v1/catalogs/products', 'POST', [
+            'name' => 'myFeedback Kompass – Befragung im Abo',
+            'description' => 'Laufende Kundenbefragung, monatlich verlängert',
+            'type' => 'SERVICE',
+            'category' => 'SOFTWARE',
+        ], 'p-' . hash('sha256', 'product-' . $amount));
+        $plan = $this->api('/v1/billing/plans', 'POST', [
+            'product_id' => $product['id'],
+            'name' => 'Befragung im Abo · ' . str_replace('.', ',', $amount) . ' € pro Monat',
+            'status' => 'ACTIVE',
+            'billing_cycles' => [[
+                'frequency' => ['interval_unit' => 'MONTH', 'interval_count' => 1],
+                'tenure_type' => 'REGULAR',
+                'sequence' => 1,
+                'total_cycles' => 0,
+                'pricing_scheme' => ['fixed_price' => ['value' => $amount, 'currency_code' => 'EUR']],
+            ]],
+            'payment_preferences' => [
+                'auto_bill_outstanding' => true,
+                'setup_fee_failure_action' => 'CANCEL',
+                'payment_failure_threshold' => 2,
+            ],
+        ], 'l-' . hash('sha256', 'plan-' . $amount . '-' . $product['id']));
+        return [$product['id'], $plan['id']];
+    }
+
+    public function subscription(string $id): array
+    {
+        return $this->api('/v1/billing/subscriptions/' . rawurlencode($id), 'GET');
+    }
+
+    /** Abbuchungen eines Abos im Zeitraum (ISO-8601, UTC) */
+    public function subscriptionTransactions(string $id, string $from, string $to): array
+    {
+        return $this->api('/v1/billing/subscriptions/' . rawurlencode($id) . '/transactions?' . http_build_query([
+            'start_time' => $from,
+            'end_time' => $to,
+        ]), 'GET')['transactions'] ?? [];
+    }
+
+    public function cancelSubscription(string $id, string $reason): void
+    {
+        $this->api('/v1/billing/subscriptions/' . rawurlencode($id) . '/cancel', 'POST', ['reason' => $reason]);
+    }
+
+    public function environment(): string
+    {
+        return str_contains(self::API, 'sandbox') ? 'sandbox' : 'live';
     }
 
     public function order(string $id): array
@@ -99,6 +179,9 @@ final class PayPalSandbox
         curl_setopt_array($curl, $options);
         $response = curl_exec($curl);
         $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        if ($status === 204) {
+            return [];
+        }
         $data = is_string($response) ? json_decode($response, true) : null;
         if ($status < 200 || $status >= 300 || !is_array($data)) {
             throw new RuntimeException('PayPal API HTTP ' . $status);

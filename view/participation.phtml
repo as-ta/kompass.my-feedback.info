@@ -1,33 +1,133 @@
-<section class="card">
-    <?php if ($state === 'active' && !$thanks): ?>
-        <h1><?= $this->escapeHtml($poll['title']) ?></h1>
-        <p>Bitte beantworten Sie die folgenden Fragen.</p>
+<?php
+$preview = !empty($preview);
+$tablet = !empty($tablet);
+$takeUrl = fn (array $query = []): string => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['befragung' => $token ?? ''] + ($tablet ? ['geraet' => 'tablet'] : []) + $query]));
+?>
+<?php if ($preview): ?>
+    <aside class="participation-preview" role="note">
+        <strong>Testansicht</strong>
+        <span>Sie sind als Inhaber dieser Befragung angemeldet. Sie können alles durchklicken, Ihre Antworten werden <strong>nicht gespeichert</strong> und zählen nicht in die Ergebnisse.</span>
+        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'draft', 'id' => $manage]])) ?>">Zur Verwaltung</a>
+    </aside>
+<?php endif ?>
+<section class="card participation<?= $tablet ? ' participation--tablet' : '' ?>"<?= $tablet && ($state === 'active') && empty($thanks) && isset($page) ? ' data-tablet-idle data-reset-url="' . $takeUrl(['neu' => '1']) . '"' : '' ?>>
+    <?php if (($state === 'active' || $preview) && empty($thanks) && isset($page)): ?>
+        <?php
+            $isQuestion = $page['type'] === 'question';
+            $question = $isQuestion ? $page['question'] : null;
+            $stars = $isQuestion && !empty($question['stars']);
+            $scale = $isQuestion && isset($question['ends']);
+            $last = $number === $total;
+        ?>
+        <div class="participation-progress" aria-label="Frage <?= (int) $number ?> von <?= (int) $total ?>">
+            <span>Frage <?= (int) $number ?> von <?= (int) $total ?></span>
+            <span class="participation-progress-bar" aria-hidden="true"><span style="width: <?= round(100 * ($number - 1) / $total) ?>%"></span></span>
+        </div>
+        <?php if ($number === 1): ?>
+            <p class="participation-title"><?= $this->escapeHtml($poll['title']) ?></p>
+            <p class="detail participation-duration"><?= (int) $total ?> kurze <?= $total === 1 ? 'Frage' : 'Fragen' ?> · ca. <?= (int) $minutes ?> <?= $minutes === 1 ? 'Minute' : 'Minuten' ?></p>
+        <?php endif ?>
         <?php if ($error !== ''): ?>
             <p class="error" role="alert"><?= $this->escapeHtml($error) ?></p>
         <?php endif ?>
-        <form class="preview" method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['befragung' => $token]])) ?>">
+
+        <form method="post" action="<?= $takeUrl(['frage' => $number]) ?>" data-step-form>
             <input type="hidden" name="nonce" value="<?= $this->escapeHtmlAttr($nonce) ?>">
             <input type="hidden" name="signature" value="<?= $this->escapeHtmlAttr($signature) ?>">
-            <?= $this->partial('wizard/questions', ['questions' => $poll['questions'], 'comment' => $poll['comment'], 'participation' => true, 'values' => $values]) ?>
-            <div class="actions"><button type="submit">Antworten absenden</button></div>
+
+            <?php if ($isQuestion): ?>
+                <fieldset class="options participation-question<?= $scale ? ' scale' : '' ?>">
+                    <legend><h1><?= $this->escapeHtml($question['text']) ?></h1></legend>
+                    <?php if ($scale): ?>
+                        <div class="scale-ends" id="scale-ends">
+                            <span><?= $this->escapeHtml($question['ends'][0]) ?></span>
+                            <span><?= $this->escapeHtml($question['ends'][1]) ?></span>
+                        </div>
+                    <?php endif ?>
+                    <?php $count = count($question['options']); ?>
+                    <div class="preview-options<?= $stars ? ' star-options' : '' ?><?= $scale && !$stars && $count >= 10 ? ' long-scale' : '' ?>">
+                        <?php foreach ($question['options'] as $index => $option): ?>
+                            <?php
+                                $value = (int) $question['option_ids'][$index];
+                                $end = $scale && !$stars ? ($index === 0 ? $question['ends'][0] : ($index === $count - 1 ? $question['ends'][1] : null)) : null;
+                            ?>
+                            <label class="option"<?= $end !== null ? ' data-end="' . $this->escapeHtmlAttr($end) . '"' : '' ?>>
+                                <input type="radio" name="answer" value="<?= $value ?>" required
+                                    <?= (int) $selected === $value && $selected !== null ? 'checked' : '' ?>
+                                    <?= $scale ? 'aria-describedby="scale-ends"' : '' ?>>
+                                <?php if ($stars): ?>
+                                    <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="m12 2 3.1 6.3 7 .9-5.1 5 1.2 7L12 18l-6.2 3.2 1.2-7-5.1-5 7-.9z"/>
+                                    </svg>
+                                    <span class="rating-label"><?= $this->escapeHtml($option) ?> <?= $option === '1' ? 'Stern' : 'Sterne' ?></span>
+                                <?php else: ?>
+                                    <span><?= $this->escapeHtml($option) ?></span>
+                                <?php endif ?>
+                            </label>
+                        <?php endforeach ?>
+                    </div>
+                </fieldset>
+            <?php else: ?>
+                <div class="participation-question participation-comment">
+                    <label for="participation-comment"><h1><?= $this->escapeHtml($page['text']) ?></h1></label>
+                    <p class="detail">Freiwillig. Sie können auch direkt absenden.</p>
+                    <textarea id="participation-comment" name="comment" rows="5" maxlength="4000"><?= $this->escapeHtml((string) $selected) ?></textarea>
+                </div>
+            <?php endif ?>
+
+            <div class="actions participation-actions">
+                <?php if ($number > 1): ?>
+                    <a class="participation-back" href="<?= $takeUrl(['frage' => $number - 1]) ?>">← Zurück</a>
+                <?php endif ?>
+                <button type="submit"><?= $last ? 'Absenden' : 'Weiter →' ?></button>
+            </div>
         </form>
-    <?php elseif ($state === 'active'): ?>
-        <h1>Vielen Dank für Ihre Teilnahme!</h1>
-        <p>Ihre Antworten wurden gespeichert.</p>
+
+    <?php elseif ($preview && !empty($thanks)): ?>
+        <h1>Testdurchlauf beendet</h1>
+        <p>So sehen Ihre Befragten den Abschluss. Da Sie als Inhaber angemeldet sind, wurde nichts gespeichert.</p>
+        <div class="actions">
+            <a class="secondary" href="<?= $takeUrl() ?>">Noch einmal durchklicken</a>
+            <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'draft', 'id' => $manage]])) ?>">Zur Verwaltung</a>
+        </div>
+    <?php elseif (!empty($thanks) && $tablet): ?>
+        <div class="participation-thanks" data-tablet-next="<?= $takeUrl() ?>">
+            <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>
+            <h1>Vielen Dank für Ihre Teilnahme!</h1>
+            <p>Ihre Antworten sind angekommen.</p>
+            <p class="detail" data-tablet-countdown>Gleich geht es für die nächste Person los.</p>
+            <p class="actions"><a class="button-link" href="<?= $takeUrl() ?>">Nächste Person</a></p>
+        </div>
+    <?php elseif (!empty($thanks)): ?>
+        <div class="participation-thanks">
+            <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5"/></svg>
+            <h1>Vielen Dank für Ihre Teilnahme!</h1>
+            <p>Ihre Antworten sind angekommen. Sie können dieses Fenster jetzt schließen.</p>
+        </div>
     <?php else: ?>
         <h1><?= match ($state) {
-            'draft', 'ready' => 'Diese Befragung ist noch nicht gestartet',
-            'closed' => 'Diese Befragung ist abgeschlossen',
-            'unavailable' => 'Die Befragung ist gerade nicht verfügbar',
+            'draft', 'ready' => 'Diese Befragung ist gerade nicht geöffnet',
+            'closed' => 'Vielen Dank für Ihr Interesse!',
+            'unavailable' => 'Die Befragung ist gerade nicht erreichbar',
             default => 'Befragung nicht gefunden',
         } ?></h1>
         <?php if (in_array($state, ['draft', 'ready'], true)): ?>
-            <p>Eine Teilnahme ist möglich, sobald die Befragung freigeschaltet wurde.</p>
+            <p>Bitte versuchen Sie es später noch einmal.</p>
         <?php elseif ($state === 'closed'): ?>
-            <p>Der Teilnahmezeitraum ist abgelaufen.</p>
-        <?php endif ?>
-        <?php if (isset($manage)): ?>
-            <a class="secondary" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'draft', 'id' => $manage]])) ?>">Befragung verwalten</a>
+            <p>Diese Befragung ist beendet.</p>
+        <?php elseif ($state === 'unavailable'): ?>
+            <p>Bitte versuchen Sie es in einigen Minuten noch einmal.</p>
+        <?php else: ?>
+            <p>Bitte prüfen Sie den Link oder scannen Sie den QR-Code erneut.</p>
         <?php endif ?>
     <?php endif ?>
 </section>
+<?php if ($tablet && $state === 'active' && empty($thanks) && isset($page)): ?>
+    <div class="tablet-idle" data-tablet-idle-dialog hidden role="alertdialog" aria-modal="true" aria-labelledby="tablet-idle-title">
+        <div class="tablet-idle-box">
+            <h2 id="tablet-idle-title">Sind Sie noch da?</h2>
+            <p>Ohne Eingabe beginnt die Befragung in <strong data-tablet-idle-seconds>20</strong> Sekunden für die nächste Person neu.</p>
+            <button type="button" data-tablet-idle-continue>Weiter antworten</button>
+        </div>
+    </div>
+<?php endif ?>

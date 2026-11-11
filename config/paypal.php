@@ -6,6 +6,8 @@ $settings = [
     'client_id' => getenv('KOMPASS_PAYPAL_CLIENT_ID') ?: '',
     'secret' => getenv('KOMPASS_PAYPAL_SECRET') ?: '',
     'amount' => getenv('KOMPASS_PAYPAL_AMOUNT') ?: '',
+    // Monatspreis im Abo (inkl. MwSt.)
+    'subscription_amount' => getenv('KOMPASS_PAYPAL_SUBSCRIPTION_AMOUNT') ?: '19.00',
 ];
 $local = __DIR__ . '/paypal.local.php';
 

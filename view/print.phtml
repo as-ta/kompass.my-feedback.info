@@ -1,0 +1,112 @@
+<?php
+// Druckvorlagen: eigenständige Seite ohne Kompass-Rahmen. Die Werkzeugleiste erscheint nur am Bildschirm.
+$names = ['aushang' => 'Aushang A4', 'aufsteller' => 'Tischaufsteller', 'kaertchen' => 'Kärtchen', 'tablet' => 'Schild fürs Tablet'];
+$link = fn (string $vorlage): string => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'print', 'id' => $pollId, 'vorlage' => $vorlage]]));
+$logo = $branding['logo'] !== null ? $this->url('wizard', [], ['query' => ['logo' => $branding['logo']]]) : null;
+$brand = function (string $class = '') use ($logo, $branding): string {
+    if ($logo !== null) {
+        return '<img class="print-logo ' . $class . '" src="' . $this->escapeHtmlAttr($logo) . '" alt="' . $this->escapeHtmlAttr($branding['name'] ?? 'Logo') . '">';
+    }
+    return $branding['name'] !== null ? '<p class="print-company ' . $class . '">' . $this->escapeHtml($branding['name']) . '</p>' : '';
+};
+$headlineHtml = '<span data-print-headline>' . $this->escapeHtml($headline) . '</span>';
+$textHtml = '<span data-print-text>' . $this->escapeHtml($text) . '</span>';
+$scan = '<p class="print-scan"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M11 18.5h2"/></svg> Handykamera öffnen und QR-Code scannen</p>';
+$qr = fn (string $class = ''): string => '<div class="print-qr ' . $class . '" data-print-qr></div>';
+?>
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><?= $this->escapeHtml($names[$template]) ?> · <?= $this->escapeHtml($pollTitle) ?></title>
+    <link rel="icon" type="image/svg+xml" href="<?= $this->escapeHtmlAttr($this->basePath('/icon-kompass.svg')) ?>">
+    <link rel="stylesheet" href="<?= $this->escapeHtmlAttr($this->basePath('/print.css') . '?v=' . filemtime(dirname(__DIR__) . '/public/print.css')) ?>">
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/qrcode.js') . '?v=' . filemtime(dirname(__DIR__) . '/public/qrcode.js')) ?>" defer></script>
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/print.js') . '?v=' . filemtime(dirname(__DIR__) . '/public/print.js')) ?>" defer></script>
+</head>
+<body class="print-body print-<?= $template ?>" style="--print-headline: <?= $this->escapeHtmlAttr($headlineColor) ?>; --print-band: <?= $this->escapeHtmlAttr($bandColor) ?>" data-print-url="<?= $this->escapeHtmlAttr($url) ?>">
+    <div class="print-toolbar">
+        <a class="print-back" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'draft', 'id' => $pollId]])) ?>#participation-link">← Zurück zur Befragung</a>
+        <nav class="print-tabs" aria-label="Vorlage wählen">
+            <?php foreach ($names as $key => $name): ?>
+                <a href="<?= $link($key) ?>"<?= $key === $template ? ' aria-current="page"' : '' ?>><?= $this->escapeHtml($name) ?></a>
+            <?php endforeach ?>
+        </nav>
+        <div class="print-fields">
+            <label>Überschrift <input type="text" maxlength="60" value="<?= $this->escapeHtmlAttr($headline) ?>" data-print-input="headline"></label>
+            <label>Text <input type="text" maxlength="110" value="<?= $this->escapeHtmlAttr($text) ?>" data-print-input="text"></label>
+        </div>
+        <div class="print-go">
+            <button type="button" data-print-button>Drucken oder als PDF speichern</button>
+            <p><?= match ($template) {
+                'kaertchen' => '10 Kärtchen (85 × 55 mm) pro A4-Bogen. Am besten auf festes Papier (ab 200 g/m²) drucken und an den Schnittmarken schneiden.',
+                'aufsteller', 'tablet' => 'A4 drucken, in der Mitte falzen und als Zelt aufstellen. Beide Seiten zeigen dasselbe.',
+                default => 'A4 hochkant.',
+            } ?> Im Druckdialog „Ränder: Keine“ wählen und „Kopf- und Fußzeilen“ ausschalten.</p>
+        </div>
+    </div>
+
+    <main class="print-sheets">
+        <?php if ($template === 'aushang'): ?>
+            <section class="sheet poster">
+                <div class="poster-band"></div>
+                <div class="poster-inner">
+                    <?= $brand('poster-brand') ?>
+                    <h1 class="print-headline"><?= $headlineHtml ?></h1>
+                    <p class="print-text"><?= $textHtml ?></p>
+                    <?= $qr('poster-qr') ?>
+                    <?= $scan ?>
+                </div>
+                <p class="poster-foot">Befragung mit myFeedback Kompass</p>
+            </section>
+        <?php elseif ($template === 'aufsteller' || $template === 'tablet'): ?>
+            <section class="sheet tent">
+                <?php foreach (['tent-back', 'tent-front'] as $side): ?>
+                    <div class="tent-half <?= $side ?>">
+                        <div class="tent-band"></div>
+                        <div class="tent-inner<?= $template === 'tablet' ? ' tent-inner--noqr' : '' ?>">
+                            <div class="tent-copy">
+                                <?= $brand('tent-brand') ?>
+                                <h1 class="print-headline"><?= $headlineHtml ?></h1>
+                                <p class="print-text"><?= $textHtml ?></p>
+                                <?php if ($template === 'aufsteller'): ?><?= $scan ?><?php endif ?>
+                            </div>
+                            <?php if ($template === 'aufsteller'): ?>
+                                <?= $qr('tent-qr') ?>
+                            <?php else: ?>
+                                <div class="tent-arrow" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="3" width="15" height="18" rx="2"/><path d="M11 18h2"/></svg>
+                                </div>
+                            <?php endif ?>
+                        </div>
+                    </div>
+                <?php endforeach ?>
+                <div class="tent-fold" aria-hidden="true"></div>
+            </section>
+        <?php else: ?>
+            <section class="sheet cards">
+                <?php for ($i = 0; $i < 10; $i++): ?>
+                    <div class="card-item">
+                        <div class="card-copy">
+                            <?= $brand('card-brand') ?>
+                            <p class="card-headline print-headline"><?= $headlineHtml ?></p>
+                            <p class="card-text print-text"><?= $textHtml ?></p>
+                        </div>
+                        <?= $qr('card-qr') ?>
+                    </div>
+                <?php endfor ?>
+                <?php foreach ([20, 105, 190] as $x): ?>
+                    <span class="crop crop-v" style="left: <?= $x ?>mm; top: 0"></span>
+                    <span class="crop crop-v" style="left: <?= $x ?>mm; bottom: 0"></span>
+                <?php endforeach ?>
+                <?php for ($row = 0; $row <= 5; $row++): $y = 11 + $row * 55; ?>
+                    <span class="crop crop-h" style="top: <?= $y ?>mm; left: 0"></span>
+                    <span class="crop crop-h" style="top: <?= $y ?>mm; right: 0"></span>
+                <?php endfor ?>
+            </section>
+        <?php endif ?>
+    </main>
+</body>
+</html>

@@ -19,29 +19,11 @@ final class PollPayments
 
     public function advance(int $poll, int $expected, string $returnUrl, ?string $returnedOrder): array
     {
-        $this->db->beginTransaction();
         try {
-            $lock = $this->db->prepare('SELECT id FROM poll WHERE id = ? FOR UPDATE');
-            $lock->execute([$poll]);
-            if ($lock->fetchColumn() === false) {
-                throw new RuntimeException('Unknown poll');
-            }
-            $payment = (new PollLifecycle($this->db))->latest($poll);
-            if ((int) ($payment['id'] ?? 0) !== $expected
-                || ($returnedOrder !== null && ($payment['order_id'] ?? null) !== $returnedOrder)) {
-                $this->db->commit();
+            $expected = $this->ensurePeriod($poll, $expected, $returnedOrder);
+            if ($expected === null) {
                 return ['status' => 'review'];
             }
-            if ($returnedOrder === null && ($payment === null
-                || (isset($payment['paid_at']) && PollLifecycle::status($payment) === 'closed'))) {
-                $write = $this->db->prepare(
-                    'INSERT INTO poll_period (poll_id, period_number, request_key, amount) VALUES (?, ?, ?, ?)'
-                );
-                $write->execute([$poll, (int) ($payment['period_number'] ?? 0) + 1, bin2hex(random_bytes(16)), $this->amount]);
-                $expected = (int) $this->db->lastInsertId();
-            }
-            // Keep the request key and price even if PayPal times out.
-            $this->db->commit();
 
             $this->db->beginTransaction();
             $read = $this->db->prepare('SELECT * FROM poll_period WHERE id = ? FOR UPDATE');
@@ -54,6 +36,8 @@ final class PollPayments
             $result = $this->advanceLocked($poll, $payment, $returnUrl, $returnedOrder);
             $this->db->commit();
             if (($result['status'] ?? '') === 'paid') {
+                // Verlängerung: an den laufenden Zeitraum anschließen
+                (new PollLifecycle($this->db))->chain($expected);
                 try {
                     (new SandboxInvoices($this->db))->issue($expected);
                 } catch (Throwable $error) {
@@ -69,13 +53,103 @@ final class PollPayments
         }
     }
 
+    /**
+     * Bestellung für die PayPal-Buttons (Popup) anlegen oder wiederverwenden.
+     * Liefert ['orderId' => …, 'period' => …] oder einen Status wie bei advance().
+     */
+    public function buttonOrder(int $poll, int $expected): array
+    {
+        try {
+            $period = $this->ensurePeriod($poll, $expected, null);
+            if ($period === null) {
+                return ['status' => 'review'];
+            }
+
+            $this->db->beginTransaction();
+            $read = $this->db->prepare('SELECT * FROM poll_period WHERE id = ? FOR UPDATE');
+            $read->execute([$period]);
+            $payment = $read->fetch();
+            if ($payment === false) {
+                $this->db->commit();
+                return ['status' => 'review'];
+            }
+            if ($payment['paid_at'] !== null) {
+                $this->db->commit();
+                return ['status' => 'paid'];
+            }
+            if ($payment['order_id'] !== null) {
+                $order = $this->paypal->order($payment['order_id']);
+                $this->verifyOrder($order, $payment['order_id'], $poll, $payment['amount']);
+                $captured = !empty($order['purchase_units'][0]['payments']['captures']);
+                if ($captured || in_array($order['status'] ?? '', ['APPROVED', 'COMPLETED'], true)) {
+                    // Bereits freigegeben: wie nach der Rückkehr von PayPal abschließen.
+                    $this->db->commit();
+                    return $this->advance($poll, $period, '', $payment['order_id']);
+                }
+                // Offene, nie freigegebene Bestellung durch eine neue für die Buttons ersetzen.
+                // Geld fließt erst beim Abbuchen, die alte Bestellung verfällt bei PayPal.
+                $payment['request_key'] = bin2hex(random_bytes(16));
+                $reset = $this->db->prepare(
+                    'UPDATE poll_period SET order_id = NULL, approval_url = NULL, request_key = ? WHERE id = ?'
+                );
+                $reset->execute([$payment['request_key'], $payment['id']]);
+            }
+
+            $order = $this->paypal->createForButtons($payment['request_key'], $poll, $payment['amount'], $this->title($poll));
+            $id = $order['id'] ?? '';
+            if (!$this->validId($id)) {
+                throw new RuntimeException('Missing PayPal order ID');
+            }
+            $update = $this->db->prepare('UPDATE poll_period SET order_id = ?, approval_url = ? WHERE id = ?');
+            $update->execute([$id, $this->approvalUrl($order), $payment['id']]);
+            $this->db->commit();
+            return ['orderId' => $id, 'period' => (int) $payment['id']];
+        } catch (Throwable $error) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * Sperrt die Befragung, prüft den erwarteten Zeitraum und legt bei Bedarf einen neuen an.
+     * Gibt die ID des Zeitraums zurück oder null, wenn die Anfrage nicht (mehr) passt.
+     */
+    private function ensurePeriod(int $poll, int $expected, ?string $returnedOrder): ?int
+    {
+        $this->db->beginTransaction();
+        $lock = $this->db->prepare('SELECT id FROM poll WHERE id = ? FOR UPDATE');
+        $lock->execute([$poll]);
+        if ($lock->fetchColumn() === false) {
+            throw new RuntimeException('Unknown poll');
+        }
+        $payment = (new PollLifecycle($this->db))->latest($poll);
+        if ((int) ($payment['id'] ?? 0) !== $expected
+            || ($returnedOrder !== null && ($payment['order_id'] ?? null) !== $returnedOrder)) {
+            $this->db->commit();
+            return null;
+        }
+        if ($returnedOrder === null && ($payment === null
+            || (isset($payment['paid_at']) && $payment['starts_at'] !== null))) {
+            $write = $this->db->prepare(
+                'INSERT INTO poll_period (poll_id, period_number, request_key, amount) VALUES (?, ?, ?, ?)'
+            );
+            $write->execute([$poll, (int) ($payment['period_number'] ?? 0) + 1, bin2hex(random_bytes(16)), $this->amount]);
+            $expected = (int) $this->db->lastInsertId();
+        }
+        // Keep the request key and price even if PayPal times out.
+        $this->db->commit();
+        return $expected;
+    }
+
     private function advanceLocked(int $poll, array $payment, string $returnUrl, ?string $returnedOrder): array
     {
         if ($payment['paid_at'] !== null) {
             return ['status' => 'paid'];
         }
         if ($payment['order_id'] === null) {
-            $order = $this->paypal->create($payment['request_key'], $poll, $payment['amount'], $returnUrl);
+            $order = $this->paypal->create($payment['request_key'], $poll, $payment['amount'], $returnUrl, $this->title($poll));
             $id = $order['id'] ?? '';
             if (!$this->validId($id)) {
                 throw new RuntimeException('Missing PayPal order ID');
@@ -141,6 +215,13 @@ final class PollPayments
         return $returnedOrder === null && $approval !== null && in_array($order['status'] ?? '', ['CREATED', 'PAYER_ACTION_REQUIRED'], true)
             ? ['redirect' => $approval]
             : ['status' => 'review'];
+    }
+
+    private function title(int $poll): string
+    {
+        $read = $this->db->prepare('SELECT title FROM poll_version WHERE poll_id = ? ORDER BY version_number DESC LIMIT 1');
+        $read->execute([$poll]);
+        return (string) ($read->fetchColumn() ?: '');
     }
 
     private function verifyOrder(array $order, string $id, int $poll, string $amount): void

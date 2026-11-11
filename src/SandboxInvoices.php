@@ -76,7 +76,8 @@ final class SandboxInvoices
         }
 
         $read = $this->db->prepare(
-            'SELECT s.poll_id, s.period_number, s.amount, s.capture_id, s.paid_at, p.owner_id
+            'SELECT s.poll_id, s.period_number, s.amount, s.capture_id, s.paid_at, p.owner_id, s.subscription_id,
+                 (SELECT v.title FROM poll_version v WHERE v.poll_id = s.poll_id ORDER BY v.version_number DESC LIMIT 1) AS title
              FROM poll_period s JOIN poll p ON p.id = s.poll_id WHERE s.id = ?'
         );
         $read->execute([$period]);

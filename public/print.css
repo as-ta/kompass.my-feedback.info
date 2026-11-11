@@ -1,0 +1,75 @@
+/* Druckvorlagen myFeedback Kompass. Maße in mm, damit der Druck exakt passt. */
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #192921; background: #e9ece6; }
+.print-toolbar { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 1fr; gap: .7rem; padding: .9rem max(1rem, calc((100vw - 60rem) / 2)); background: #fff; border-bottom: 1px solid #d6e3cb; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+.print-back { color: #346c09; text-decoration: none; font-size: .92rem; }
+.print-tabs { display: flex; flex-wrap: wrap; gap: .4rem; }
+.print-tabs a { padding: .4rem .8rem; border: 1px solid #d6e3cb; border-radius: 999px; color: #192921; text-decoration: none; font-size: .9rem; }
+.print-tabs a:hover { border-color: #346c09; }
+.print-tabs a[aria-current="page"] { background: #346c09; border-color: #346c09; color: #fff; }
+.print-fields { display: grid; grid-template-columns: 1fr 2fr; gap: .7rem; }
+.print-fields label { display: grid; gap: .2rem; font-size: .82rem; color: #506057; font-weight: 600; }
+.print-fields input { font: inherit; font-size: .95rem; font-weight: 400; color: #192921; padding: .5rem .65rem; border: 1px solid #cfd9c6; border-radius: 8px; }
+.print-go { display: flex; gap: 1rem; align-items: center; }
+.print-go button { flex: none; padding: .65rem 1.1rem; border: 0; border-radius: 8px; background: #346c09; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+.print-go button:hover { background: #2b5a07; }
+.print-go p { margin: 0; font-size: .82rem; color: #506057; }
+@media (max-width: 700px) { .print-fields { grid-template-columns: 1fr; } .print-go { flex-direction: column; align-items: stretch; } }
+
+.print-sheets { padding: 2rem 1rem 4rem; overflow-x: auto; }
+.sheet { position: relative; width: 210mm; height: 297mm; margin: 0 auto 2rem; background: #fff; box-shadow: 0 6px 30px rgba(0,0,0,.15); overflow: hidden; }
+.print-logo { display: block; max-width: 60mm; max-height: 24mm; object-fit: contain; }
+.print-company { margin: 0; font-weight: 700; font-size: 14pt; }
+.print-headline { margin: 0; color: var(--print-headline); font-weight: 800; line-height: 1.12; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.print-text { margin: 0; line-height: 1.35; }
+.print-qr svg { display: block; width: 100%; height: auto; }
+.print-scan { display: flex; align-items: center; justify-content: center; gap: 2mm; margin: 0; color: #506057; }
+
+/* Aushang A4 */
+.poster-band { height: 9mm; background: var(--print-band); }
+.poster-inner { display: flex; flex-direction: column; align-items: center; gap: 10mm; padding: 20mm 18mm 0; text-align: center; }
+.poster-brand { margin-bottom: 2mm; }
+.poster .print-headline { font-size: 44pt; }
+.poster .print-text { font-size: 19pt; max-width: 160mm; }
+.poster-qr { width: 118mm; padding: 4mm; border: 1.2mm solid var(--print-band); border-radius: 6mm; }
+.poster .print-scan { font-size: 14pt; }
+.poster-foot { position: absolute; left: 0; right: 0; bottom: 9mm; margin: 0; text-align: center; font-size: 8.5pt; color: #8a968e; }
+
+/* Tischaufsteller: obere Hälfte steht auf dem Kopf, damit beide Seiten des Zelts lesbar sind */
+.tent-half { position: absolute; left: 0; right: 0; height: 148.5mm; display: flex; flex-direction: column; }
+.tent-back { top: 0; transform: rotate(180deg); }
+.tent-front { bottom: 0; }
+.tent-band { height: 6mm; background: var(--print-band); flex: none; }
+.tent-inner { flex: 1; display: grid; grid-template-columns: 1fr 62mm; gap: 10mm; align-items: center; padding: 10mm 16mm 14mm; }
+.tent-inner--noqr { grid-template-columns: 1fr 40mm; }
+.tent-copy { display: grid; gap: 5mm; }
+.tent .print-headline { font-size: 26pt; }
+.tent .print-text { font-size: 13pt; }
+.tent .print-scan { justify-content: flex-start; font-size: 10pt; }
+.tent-qr { width: 62mm; padding: 2.5mm; border: .9mm solid var(--print-band); border-radius: 4mm; }
+.tent-arrow { color: var(--print-band); }
+.tent-arrow svg { width: 40mm; height: 40mm; }
+.tent-fold { position: absolute; left: 0; right: 0; top: 148.5mm; border-top: .25mm dashed #b9c2bb; }
+
+/* Kärtchen: 2 × 5 à 85 × 55 mm, Ränder 20 mm seitlich und 11 mm oben/unten */
+.cards { display: grid; grid-template-columns: repeat(2, 85mm); grid-template-rows: repeat(5, 55mm); padding: 11mm 20mm; }
+.card-item { display: grid; grid-template-columns: 1fr 30mm; gap: 4mm; align-items: center; padding: 5mm 5mm 5mm 5mm; outline: .1mm dotted #d5dbd6; }
+.card-copy { display: grid; gap: 1.6mm; align-content: center; padding-left: 3mm; border-left: 1.2mm solid var(--print-band); }
+.card-brand.print-logo { max-width: 36mm; max-height: 9mm; }
+.card-brand.print-company { font-size: 8.5pt; }
+.card-headline { font-size: 12.5pt; }
+.card-text { font-size: 8pt; color: #3c4a42; }
+.card-qr { width: 30mm; }
+.crop { position: absolute; background: #000; }
+.crop-v { width: .15mm; height: 7mm; }
+.crop-h { height: .15mm; width: 14mm; }
+
+@media print {
+    body { background: #fff; }
+    .print-toolbar { display: none; }
+    .print-sheets { padding: 0; overflow: visible; }
+    .sheet { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+    .card-item { outline: none; }
+}

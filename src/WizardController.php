@@ -13,6 +13,12 @@ final class WizardController extends AbstractActionController
     public function indexAction(): ViewModel|Response
     {
         $query = $this->getRequest()->getQuery()->toArray();
+        if (isset($query['logo']) && is_string($query['logo'])) {
+            return $this->logo($query['logo']);
+        }
+        if (array_key_exists('paypal-webhook', $query)) {
+            return $this->forward()->dispatch(AccountController::class, ['action' => 'webhook']);
+        }
         if (array_key_exists('befragung', $query)) {
             return $this->forward()->dispatch(AccountController::class, ['action' => 'participate']);
         }
@@ -26,12 +32,19 @@ final class WizardController extends AbstractActionController
             if (AccountSession::userId() !== null) {
                 $this->layout()->wizardWorkspace = true;
                 $this->layout()->workspaceCsrf = AccountSession::csrf();
+                $this->layout()->accountUser = ['csrf' => AccountSession::csrf(), 'admin' => false];
             }
         }
+        $this->layout()->accountCurrent = 'new';
+        $this->layout()->pageTitle = $this->layout()->wizardWorkspace ? 'Neue Befragung' : null;
         if (($query['faq'] ?? null) === '1') {
+            $this->layout()->accountCurrent = 'faq';
+            $this->layout()->pageTitle = 'FAQ';
             return (new ViewModel())->setTemplate('wizard/faq');
         }
         if (($query['contact'] ?? null) === '1') {
+            $this->layout()->accountCurrent = 'contact';
+            $this->layout()->pageTitle = 'Kontakt';
             return $this->contact();
         }
         $this->layout()->progress = [
@@ -111,6 +124,8 @@ final class WizardController extends AbstractActionController
             'questions' => $questions,
             'review' => $review,
             'progress' => Wizard::addonsProgress($answers),
+            'loggedIn' => (bool) $this->layout()->wizardWorkspace,
+            'price' => (string) ((require dirname(__DIR__) . '/config/paypal.php')['amount'] ?? ''),
             'longSurvey' => count($selected) >= 3 || count($survey['questions']) + count($selected) >= 7,
         ]);
         if (!$done) {
@@ -118,6 +133,24 @@ final class WizardController extends AbstractActionController
         }
 
         return $view->setTemplate(($query['guide'] ?? null) === '1' ? 'wizard/guide' : 'wizard/preview');
+    }
+
+    /** Liefert ein hochgeladenes Kundenlogo aus (liegt außerhalb von public/). */
+    private function logo(string $file): Response
+    {
+        $response = $this->getResponse();
+        $logo = AccountBranding::logo($file);
+        if ($logo === null) {
+            $response->setStatusCode(404);
+            return $response;
+        }
+        $response->getHeaders()
+            ->addHeaderLine('Content-Type', $logo[1])
+            ->addHeaderLine('Cache-Control', 'public, max-age=31536000, immutable')
+            ->addHeaderLine('X-Content-Type-Options', 'nosniff')
+            ->addHeaderLine('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+        $response->setContent($logo[0]);
+        return $response;
     }
 
     private function contact(): ViewModel|Response

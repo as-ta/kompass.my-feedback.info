@@ -1,0 +1,95 @@
+<?php
+$url = fn (string $action, array $params = []) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action] + $params]));
+$errors = $brandingErrors ?? [];
+$post = $brandingPost ?? [];
+$primary = $post['primary_color'] ?? ($branding['primary'] ?? '#346c09');
+$accent = $post['accent_color'] ?? ($branding['accent'] ?? '#68b604');
+$primaryDefault = $post !== [] ? !empty($post['primary_default']) : $branding['primary'] === null;
+$accentDefault = $post !== [] ? !empty($post['accent_default']) : $branding['accent'] === null;
+$logoUrl = $branding['logo'] !== null ? $this->url('wizard', [], ['query' => ['logo' => $branding['logo']]]) : null;
+$name = $branding['name'];
+?>
+<div class="account-workspace">
+    <?= $this->partial('wizard/workspace-nav', ['current' => 'branding', 'csrf' => $csrf, 'bookkeepingAdmin' => $bookkeepingAdmin ?? false]) ?>
+    <section class="card workspace-content branding-page">
+        <h1>Erscheinungsbild</h1>
+        <p class="intro">Mit Ihrem Logo und Ihren Farben wirkt die Befragung für Ihre Kunden vertraut. Die Einstellung gilt für alle Ihre Befragungen. Ohne Angaben sehen Ihre Befragten das myFeedback-Layout.</p>
+        <?php if (!empty($brandingSaved)): ?>
+            <p class="workspace-saved" role="status">Ihr Erscheinungsbild wurde gespeichert.</p>
+        <?php endif ?>
+        <?php if ($errors !== []): ?>
+            <p class="error" role="alert">Bitte prüfen Sie die markierten Angaben.</p>
+        <?php endif ?>
+
+        <div class="branding-layout">
+            <form class="branding-form" method="post" enctype="multipart/form-data" action="<?= $url('branding') ?>" data-branding-form>
+                <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+
+                <fieldset class="branding-field">
+                    <legend>Logo</legend>
+                    <?php if ($logoUrl !== null): ?>
+                        <div class="branding-logo-current">
+                            <img src="<?= $this->escapeHtmlAttr($logoUrl) ?>" alt="Ihr aktuelles Logo">
+                            <label class="branding-check"><input type="checkbox" name="remove_logo" value="1" data-remove-logo> Logo entfernen</label>
+                        </div>
+                    <?php endif ?>
+                    <label for="branding-logo" class="detail"><?= $logoUrl !== null ? 'Neues Logo hochladen' : 'Logo hochladen' ?> · PNG, JPG oder SVG, höchstens 1 MB</label>
+                    <input id="branding-logo" name="logo" type="file" accept="image/png,image/jpeg,image/svg+xml,.svg" data-logo-input
+                        <?= isset($errors['logo']) ? 'aria-invalid="true" aria-describedby="branding-logo-error"' : '' ?>>
+                    <?php if (isset($errors['logo'])): ?><p class="error" id="branding-logo-error"><?= $this->escapeHtml($errors['logo']) ?></p><?php endif ?>
+                    <p class="detail">
+                        <?php if ($name !== null): ?>
+                            Ohne Logo zeigen wir Ihren Firmennamen „<?= $this->escapeHtml($name) ?>“ aus den <a href="<?= $url('billing') ?>">Rechnungsdaten</a>.
+                        <?php else: ?>
+                            Ohne Logo bleibt die Kopfzeile leer. Tragen Sie in den <a href="<?= $url('billing') ?>">Rechnungsdaten</a> einen Firmennamen ein, erscheint dieser.
+                        <?php endif ?>
+                    </p>
+                </fieldset>
+
+                <?php foreach ([
+                    'primary' => ['Hauptfarbe', 'Für Buttons, Auswahl und Sterne.', $primary, $primaryDefault, '#346c09'],
+                    'accent' => ['Akzentfarbe', 'Für den Fortschrittsbalken. Ohne eigene Angabe nehmen wir die Hauptfarbe bzw. das myFeedback-Grün.', $accent, $accentDefault, '#68b604'],
+                ] as $key => [$label, $hint, $value, $isDefault, $fallback]): ?>
+                    <fieldset class="branding-field" data-color-field="<?= $key ?>" data-fallback="<?= $fallback ?>">
+                        <legend><?= $label ?></legend>
+                        <p class="detail"><?= $hint ?></p>
+                        <div class="branding-color">
+                            <input type="color" value="<?= $this->escapeHtmlAttr(preg_match('/\A#[0-9a-fA-F]{6}\z/', (string) $value) ? $value : $fallback) ?>" aria-label="<?= $label ?> wählen" data-color-picker>
+                            <input type="text" name="<?= $key ?>_color" value="<?= $this->escapeHtmlAttr((string) $value) ?>" maxlength="7" spellcheck="false" aria-label="<?= $label ?> als Hex-Wert" data-color-text
+                                <?= isset($errors[$key . '_color']) ? 'aria-invalid="true"' : '' ?>>
+                            <label class="branding-check"><input type="checkbox" name="<?= $key ?>_default" value="1"<?= $isDefault ? ' checked' : '' ?> data-color-default> myFeedback-Standard</label>
+                        </div>
+                        <?php if (isset($errors[$key . '_color'])): ?><p class="error"><?= $this->escapeHtml($errors[$key . '_color']) ?></p><?php endif ?>
+                        <p class="detail branding-warning" data-contrast-warning hidden>Diese Farbe hebt sich kaum vom weißen Hintergrund ab. Wählen Sie besser einen kräftigeren Ton.</p>
+                    </fieldset>
+                <?php endforeach ?>
+
+                <div class="actions"><button type="submit">Erscheinungsbild speichern</button></div>
+            </form>
+
+            <aside class="branding-preview" aria-label="Vorschau" data-branding-preview>
+                <p class="eyebrow">So sehen Ihre Befragten die Seite</p>
+                <div class="branding-phone">
+                    <div class="branding-phone-header" data-preview-header>
+                        <img src="<?= $this->escapeHtmlAttr($logoUrl ?? '') ?>" alt="" data-preview-logo<?= $logoUrl === null ? ' hidden' : '' ?>>
+                        <strong data-preview-name<?= $logoUrl !== null || $name === null ? ' hidden' : '' ?>><?= $this->escapeHtml($name ?? '') ?></strong>
+                    </div>
+                    <div class="branding-phone-card">
+                        <span class="branding-phone-step">Frage 1 von 4</span>
+                        <span class="branding-phone-bar"><span></span></span>
+                        <strong class="branding-phone-question">Wie zufrieden waren Sie mit Ihrem Einkauf?</strong>
+                        <span class="branding-phone-stars" aria-hidden="true">
+                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                <svg viewBox="0 0 24 24" class="<?= $i <= 4 ? 'is-on' : '' ?>"><path d="m12 2 3.1 6.3 7 .9-5.1 5 1.2 7L12 18l-6.2 3.2 1.2-7-5.1-5 7-.9z"/></svg>
+                            <?php endfor ?>
+                        </span>
+                        <span class="branding-phone-option is-on">Beim Einkauf vor Ort</span>
+                        <span class="branding-phone-option">Online-Bestellung</span>
+                        <span class="branding-phone-button">Weiter →</span>
+                    </div>
+                    <p class="branding-phone-footer">Befragung mit myFeedback Kompass</p>
+                </div>
+            </aside>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,226 @@
+<?php
+$resultsUrl = fn (string $action, array $params = []) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action] + $params]));
+$number = static fn (float|int $value, int $decimals = 1): string => str_replace('-', '−', number_format($value, $decimals, ',', '.'));
+$chartJson = static fn (array $data): string => json_encode($data, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+
+// Anteil der Antworten in der oberen Hälfte einer Skala (z. B. CES 5–7 von 1–7)
+$topShare = static function (array $question): ?float {
+    if ($question['answered'] === 0 || $question['options'] === []) {
+        return null;
+    }
+    $values = array_map(static fn (array $o): ?int => $o['numeric'] === null ? null : (int) $o['numeric'], $question['options']);
+    if (in_array(null, $values, true)) {
+        return null;
+    }
+    $middle = (min($values) + max($values)) / 2;
+    $top = 0;
+    foreach ($question['options'] as $option) {
+        if ((int) $option['numeric'] > $middle) {
+            $top += $option['count'];
+        }
+    }
+    return 100 * $top / $question['answered'];
+};
+$npsVerdict = static fn (float $nps): string => match (true) {
+    $nps < 0 => 'Mehr Kritiker als Befürworter. Hier lohnt es sich anzusetzen.',
+    $nps < 30 => 'Solide: Es gibt mehr Befürworter als Kritiker.',
+    $nps < 70 => 'Sehr gut: Viele empfehlen Sie aktiv weiter.',
+    default => 'Hervorragend: Ihre Kunden sind echte Fans.',
+};
+?>
+<div class="account-workspace">
+    <?= $this->partial('wizard/workspace-nav', ['current' => 'results', 'csrf' => $csrf]) ?>
+    <section class="card workspace-content results-page">
+        <h1>Ergebnisse</h1>
+        <p class="intro">Sehen Sie, was die Teilnehmenden Ihnen mitgeteilt haben.</p>
+        <?php if (count($resultPolls) > 1): ?>
+            <form class="results-selector" method="get" action="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>" data-results-selector>
+                <input type="hidden" name="account" value="results">
+                <label for="result-poll">Befragung auswählen</label>
+                <div>
+                    <select id="result-poll" name="id">
+                        <?php foreach ($resultPolls as $item): ?>
+                            <option value="<?= (int) $item['id'] ?>"<?= (int) $item['id'] === (int) $report['id'] ? ' selected' : '' ?>><?= $this->escapeHtml($item['title']) ?> · angelegt am <?= (new DateTimeImmutable($item['created_at']))->format('d.m.Y') ?></option>
+                        <?php endforeach ?>
+                    </select>
+                    <button type="submit">Anzeigen</button>
+                </div>
+            </form>
+        <?php endif ?>
+        <?php if ($report === null): ?>
+            <div class="workspace-empty results-empty">
+                <p><strong>Noch keine Ergebnisse.</strong> Ergebnisse erscheinen hier, sobald eine Ihrer Befragungen gestartet wurde und die ersten Antworten eingehen.</p>
+                <a class="workspace-create" href="<?= $resultsUrl('list') ?>">Zu meinen Befragungen →</a>
+            </div>
+        <?php else: ?>
+            <?php
+                // Kennzahlen für „Auf einen Blick“
+                $kpis = [['label' => 'Vollständige Teilnahmen', 'value' => $report['completed'] ?? $report['responses'], 'decimals' => 0, 'suffix' => '', 'tone' => 'neutral']];
+                foreach ($report['questions'] as $question) {
+                    $summary = $question['summary'] ?? null;
+                    if (isset($summary['satisfied']) && count($kpis) < 4) {
+                        $kpis[] = ['label' => 'Zufrieden (4–5 Sterne)', 'value' => $summary['satisfied'], 'decimals' => 0, 'suffix' => ' %', 'tone' => $summary['satisfied'] >= 70 ? 'good' : ($summary['satisfied'] >= 50 ? 'mid' : 'bad')];
+                    } elseif (isset($summary['nps']) && count($kpis) < 4) {
+                        $kpis[] = ['label' => 'Weiterempfehlung (NPS)', 'value' => $summary['nps'], 'decimals' => 0, 'suffix' => '', 'sign' => true, 'tone' => $summary['nps'] >= 30 ? 'good' : ($summary['nps'] >= 0 ? 'mid' : 'bad')];
+                    } elseif (($question['metric'] ?? null) === 'ces' && ($share = $topShare($question)) !== null && count($kpis) < 4) {
+                        $kpis[] = ['label' => 'Fanden es leicht', 'value' => $share, 'decimals' => 0, 'suffix' => ' %', 'tone' => $share >= 70 ? 'good' : ($share >= 50 ? 'mid' : 'bad')];
+                    }
+                }
+            ?>
+            <header class="results-heading">
+                <h2><?= $this->escapeHtml($report['title']) ?></h2>
+                <a href="<?= $resultsUrl('draft', ['id' => $report['id']]) ?>">Zur Befragung →</a>
+            </header>
+
+            <?php if ($report['responses'] === 0): ?>
+                <div class="workspace-empty">
+                    <h2>Noch keine Antworten</h2>
+                    <p>Sobald Teilnehmende den Fragebogen absenden, erscheinen die Ergebnisse hier.</p>
+                    <a href="<?= $resultsUrl('draft', ['id' => $report['id']]) ?>#poll-workflow">Zur Befragung und zum Teilnahmelink →</a>
+                </div>
+            <?php else: ?>
+                <section class="results-glance" aria-labelledby="results-glance">
+                    <h2 id="results-glance" class="eyebrow">Auf einen Blick</h2>
+                    <div class="results-kpis">
+                        <?php foreach ($kpis as $kpi): ?>
+                            <div class="results-kpi results-kpi--<?= $kpi['tone'] ?>">
+                                <span><?= $this->escapeHtml($kpi['label']) ?></span>
+                                <strong data-countup="<?= $this->escapeHtmlAttr((string) round($kpi['value'], $kpi['decimals'])) ?>" data-suffix="<?= $this->escapeHtmlAttr($kpi['suffix']) ?>"<?= !empty($kpi['sign']) ? ' data-sign' : '' ?>><?= !empty($kpi['sign']) && $kpi['value'] > 0 ? '+' : '' ?><?= $number($kpi['value'], $kpi['decimals']) ?><?= $kpi['suffix'] ?></strong>
+                            </div>
+                        <?php endforeach ?>
+                    </div>
+                    <?php if (($report['abandoned'] ?? 0) > 0 || ($report['in_progress'] ?? 0) > 0): ?>
+                        <p class="results-completion">
+                            <?php if (($report['abandoned'] ?? 0) > 0): ?>
+                                <strong><?= (int) $report['abandoned'] ?></strong> <?= $report['abandoned'] === 1 ? 'Teilnahme wurde' : 'Teilnahmen wurden' ?> abgebrochen<?php if ($report['dropoff_question'] !== null): ?>, am häufigsten bei Frage <?= (int) $report['dropoff_question'] ?><?php endif ?>.
+                            <?php endif ?>
+                            <?php if (($report['in_progress'] ?? 0) > 0): ?>
+                                <?= (int) $report['in_progress'] ?> <?= $report['in_progress'] === 1 ? 'Person füllt' : 'Personen füllen' ?> den Fragebogen gerade aus.
+                            <?php endif ?>
+                            <span class="detail">Bereits beantwortete Fragen abgebrochener Teilnahmen fließen in die Auswertung ein. Als abgebrochen gilt eine Teilnahme nach 24 Stunden ohne Aktivität.</span>
+                        </p>
+                    <?php endif ?>
+                    <?php if (count($report['timeline'] ?? []) > 0): ?>
+                        <div class="results-timeline">
+                            <h3>Antworten im Verlauf</h3>
+                            <div class="result-chart result-chart--timeline" id="result-chart-timeline" hidden></div>
+                            <script type="application/json" data-result-chart="result-chart-timeline"><?= $chartJson(['kind' => 'timeline', 'data' => array_map(static fn (array $row): array => ['day' => $row['day'], 'responses' => (int) $row['responses']], $report['timeline'])]) ?></script>
+                            <?php if ($report['last_submitted'] !== null): ?>
+                                <p class="detail">Letzte Antwort am <?= (new DateTimeImmutable($report['last_submitted'], new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Europe/Berlin'))->format('d.m.Y \u\m H:i') ?> Uhr</p>
+                            <?php endif ?>
+                        </div>
+                    <?php endif ?>
+                </section>
+
+                <div class="results-questions">
+                    <?php foreach ($report['questions'] as $index => $question): ?>
+                        <?php
+                            $qid = (int) $question['id'];
+                            $summary = $question['summary'] ?? null;
+                            $metric = $question['metric'] ?? null;
+                            $isScale = $question['question_type'] === 'scale';
+                        ?>
+                        <section class="results-question results-question--<?= $this->escapeHtmlAttr($metric ?? $question['question_type']) ?>" aria-labelledby="result-question-<?= $qid ?>">
+                            <header class="results-question-head">
+                                <span class="results-question-number" aria-hidden="true"><?= $index + 1 ?></span>
+                                <div>
+                                    <?php if ($report['multiple_versions']): ?><p class="eyebrow">Fragebogenversion <?= (int) $question['version_number'] ?></p><?php endif ?>
+                                    <h3 id="result-question-<?= $qid ?>"><?= $this->escapeHtml($question['prompt']) ?></h3>
+                                    <p class="detail"><?= (int) $question['answered'] ?> <?= $question['answered'] === 1 ? 'Antwort' : 'Antworten' ?><?php if ($question['question_type'] === 'text'): ?> · freiwillig<?php endif ?></p>
+                                </div>
+                            </header>
+
+                            <?php if ($question['answered'] === 0): ?>
+                                <p class="detail">Zu dieser Frage liegen noch keine Antworten vor.</p>
+
+                            <?php elseif ($question['question_type'] === 'text'): ?>
+                                <?php $comments = $question['comments']; ?>
+                                <div class="results-quotes">
+                                    <?php foreach (array_slice($comments, 0, 3) as $comment): ?>
+                                        <blockquote><?= nl2br($this->escapeHtml($comment)) ?></blockquote>
+                                    <?php endforeach ?>
+                                </div>
+                                <?php if (count($comments) > 3): ?>
+                                    <details class="results-comments">
+                                        <summary>Alle <?= count($comments) ?> Antworten lesen</summary>
+                                        <?php foreach (array_slice($comments, 3) as $comment): ?>
+                                            <blockquote><?= nl2br($this->escapeHtml($comment)) ?></blockquote>
+                                        <?php endforeach ?>
+                                    </details>
+                                <?php endif ?>
+
+                            <?php else: ?>
+                                <?php if (isset($summary['nps'])): ?>
+                                    <div class="results-split">
+                                        <div class="result-chart result-chart--gauge" id="result-gauge-<?= $qid ?>" hidden></div>
+                                        <script type="application/json" data-result-chart="result-gauge-<?= $qid ?>"><?= $chartJson(['kind' => 'gauge', 'value' => round($summary['nps'], 1)]) ?></script>
+                                        <div class="results-insight">
+                                            <p class="results-score results-score--<?= $summary['nps'] >= 30 ? 'good' : ($summary['nps'] >= 0 ? 'mid' : 'bad') ?>"><strong><?= $summary['nps'] > 0 ? '+' : '' ?><?= $number($summary['nps'], 0) ?></strong><span>Net Promoter Score</span></p>
+                                            <p><?= $this->escapeHtml($npsVerdict($summary['nps'])) ?></p>
+                                            <p class="detail">Faustregel: Werte über 0 sind gut, über 30 sehr gut. Je nach Branche weichen die Werte ab.</p>
+                                        </div>
+                                    </div>
+                                    <div class="result-chart result-chart--stack" id="result-stack-<?= $qid ?>" hidden></div>
+                                    <script type="application/json" data-result-chart="result-stack-<?= $qid ?>"><?= $chartJson(['kind' => 'nps-stack', 'groups' => $summary['groups'], 'answered' => $question['answered']]) ?></script>
+                                    <details class="results-explanation"><summary>Was bedeutet der NPS?</summary><p>Der Net Promoter Score beschreibt die Bereitschaft zur Weiterempfehlung. Vom Anteil der Bewertungen 9 und 10 (Befürworter) wird der Anteil der Bewertungen 0 bis 6 (Kritiker) abgezogen. Der Wert reicht von −100 bis +100. Die Bewertungen 7 und 8 zählen zur Gesamtzahl, aber zu keiner der beiden Gruppen.</p></details>
+                                    <h4 class="results-subheading">Verteilung der Bewertungen 0–10</h4>
+
+                                <?php elseif (isset($summary['satisfied'])): ?>
+                                    <div class="results-split">
+                                        <div class="result-chart result-chart--donut" id="result-donut-<?= $qid ?>" hidden></div>
+                                        <script type="application/json" data-result-chart="result-donut-<?= $qid ?>"><?= $chartJson(['kind' => 'donut', 'data' => $question['options'], 'center' => $number($summary['mean'])]) ?></script>
+                                        <div class="results-insight">
+                                            <p class="results-score results-score--<?= $summary['satisfied'] >= 70 ? 'good' : ($summary['satisfied'] >= 50 ? 'mid' : 'bad') ?>"><strong><?= $number($summary['satisfied'], 0) ?> %</strong><span>sind zufrieden (4 oder 5 Sterne)</span></p>
+                                            <p class="results-stars" aria-label="Durchschnitt <?= $number($summary['mean']) ?> von 5 Sternen">
+                                                <span class="results-stars-fill" style="--stars: <?= round($summary['mean'] / 5 * 100, 1) ?>%" aria-hidden="true">★★★★★</span>
+                                                <span>Ø <?= $number($summary['mean']) ?> von 5</span>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                <?php elseif ($isScale && $summary !== null): ?>
+                                    <?php $share = $topShare($question); ?>
+                                    <div class="results-insight results-insight--row">
+                                        <?php if ($share !== null): ?>
+                                            <p class="results-score results-score--<?= $share >= 70 ? 'good' : ($share >= 50 ? 'mid' : 'bad') ?>"><strong><?= $number($share, 0) ?> %</strong><span><?= $metric === 'ces' ? 'fanden es leicht' : 'bewerten im oberen Bereich' ?></span></p>
+                                        <?php endif ?>
+                                        <p class="results-score"><strong><?= $number($summary['mean']) ?></strong><span>Durchschnitt auf der Skala <?= (int) $summary['min'] ?> bis <?= (int) $summary['max'] ?></span></p>
+                                    </div>
+                                    <?php if ($metric === 'ces'): ?>
+                                        <details class="results-explanation"><summary>Was bedeutet der CES?</summary><p>Der Customer Effort Score beschreibt, wie leicht die Teilnehmenden den erfragten Vorgang empfunden haben. Je höher der Anteil im oberen Bereich, desto reibungsloser läuft es.</p></details>
+                                    <?php endif ?>
+
+                                <?php elseif ($question['question_type'] === 'choice' && $question['options'] !== []): ?>
+                                    <?php
+                                        $top = $question['options'];
+                                        usort($top, static fn (array $a, array $b): int => $b['count'] <=> $a['count']);
+                                    ?>
+                                    <p class="results-insight-line">Am häufigsten genannt: <strong><?= $this->escapeHtml($top[0]['label']) ?></strong> (<?= $number($top[0]['percent'], 0) ?> %)</p>
+                                <?php endif ?>
+
+                                <?php if ($isScale): ?><p class="results-scale-ends detail"><span><?= $this->escapeHtml($question['scale_low'] ?? '') ?></span><span><?= $this->escapeHtml($question['scale_high'] ?? '') ?></span></p><?php endif ?>
+                                <div class="result-chart result-chart--<?= $question['question_type'] === 'choice' ? 'bars' : 'columns' ?>" id="result-chart-<?= $qid ?>" hidden></div>
+                                <script type="application/json" data-result-chart="result-chart-<?= $qid ?>"><?= $chartJson([
+                                    'kind' => $question['question_type'] === 'choice' ? 'bars' : 'columns',
+                                    'metric' => $metric, 'title' => $question['prompt'], 'data' => $question['options'],
+                                ]) ?></script>
+                                <details class="results-values"><summary>Antwortverteilung als Tabelle ansehen</summary>
+                                    <table><thead><tr><th scope="col">Antwort</th><th scope="col">Anzahl</th><th scope="col">Anteil</th></tr></thead><tbody>
+                                        <?php foreach ($question['options'] as $option): ?><tr><th scope="row"><?= $this->escapeHtml($option['label']) ?></th><td><?= (int) $option['count'] ?></td><td><?= $number($option['percent']) ?> %</td></tr><?php endforeach ?>
+                                    </tbody></table>
+                                </details>
+                            <?php endif ?>
+                        </section>
+                    <?php endforeach ?>
+                </div>
+                <p class="detail results-footnote">Die Auswertung umfasst die Antworten aus allen Laufzeiten dieser Befragung. Prozentwerte beziehen sich auf die Antworten zur jeweiligen Frage.</p>
+            <?php endif ?>
+        <?php endif ?>
+    </section>
+</div>
+<?php if ($report !== null && $report['responses'] > 0): ?>
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/amcharts/core.js')) ?>" defer></script>
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/amcharts/charts.js')) ?>" defer></script>
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/amcharts/de_DE.js')) ?>" defer></script>
+<?php endif ?>
+<script src="<?= $this->escapeHtmlAttr($this->basePath('/results.js') . '?v=' . filemtime(dirname(__DIR__) . '/public/results.js')) ?>" defer></script>

@@ -125,7 +125,13 @@ final class PollDrafts
         $statement = $this->db->prepare(
             'SELECT p.id, p.created_at, v.title, s.id AS period_id, s.order_id, s.amount AS period_amount,
                  s.period_number, s.paid_at, s.starts_at, s.ends_at,
-                 s.ends_at > UTC_TIMESTAMP() AS running, s.payment_pending, (' . $this->deletableSql() . ') AS deletable
+                 s.ends_at > UTC_TIMESTAMP() AS running, s.payment_pending,
+                 (SELECT MAX(r.ends_at) FROM poll_period r WHERE r.poll_id = p.id AND r.paid_at IS NOT NULL AND r.starts_at IS NOT NULL) AS running_until,
+                 (SELECT COUNT(*) FROM poll_period r WHERE r.poll_id = p.id AND r.paid_at IS NOT NULL
+                     AND r.starts_at IS NOT NULL AND r.ends_at > UTC_TIMESTAMP()) AS running_periods,
+                 (SELECT COUNT(*) FROM poll_subscription b WHERE b.poll_id = p.id
+                     AND b.status IN (\'APPROVED\', \'ACTIVE\', \'SUSPENDED\')) AS subscribed, (' . $this->deletableSql() . ') AS deletable,
+                 (SELECT COUNT(*) FROM poll_response r JOIN poll_period rp ON rp.id = r.poll_period_id WHERE rp.poll_id = p.id AND r.completed_at IS NOT NULL) AS responses
              FROM poll p JOIN poll_version v ON v.poll_id = p.id AND v.version_number = 1
              LEFT JOIN poll_period s ON s.id = (
                  SELECT id FROM poll_period WHERE poll_id = p.id ORDER BY period_number DESC LIMIT 1
@@ -139,7 +145,7 @@ final class PollDrafts
     public function find(int $owner, int $poll): ?array
     {
         $statement = $this->db->prepare(
-            'SELECT v.id, v.title, v.purpose, v.audience, (' . $this->deletableSql() . ') AS deletable
+            'SELECT v.id, v.title, v.purpose, v.audience, v.catalog_key, v.wizard_answers, p.created_at, (' . $this->deletableSql() . ') AS deletable
              FROM poll_version v JOIN poll p ON p.id = v.poll_id
              WHERE p.owner_id = ? AND p.id = ? ORDER BY v.version_number DESC LIMIT 1'
         );

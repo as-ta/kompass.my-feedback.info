@@ -1,4 +1,5 @@
 <?php $url = fn (string $action) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action]])); ?>
+<?php // Linkes Menü (nur Desktop). Rechnungen, Rechnungsdaten und Abmelden stehen im Konto-Menü oben rechts. ?>
 <nav class="workspace-nav" aria-label="Kontobereich">
     <?php if (!empty($bookkeepingAdmin)): ?>
         <p>Administration</p>
@@ -6,15 +7,9 @@
         <a<?= $current === 'issuer' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('issuer') ?>">Rechnungsaussteller</a>
     <?php else: ?>
         <p>Ihr Kompass-Konto</p>
-        <?php if (empty($setup)): ?>
-            <a<?= $current === 'list' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('list') ?>">Meine Befragungen</a>
-            <a<?= $current === 'new' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Neue Befragung</a>
-            <a<?= $current === 'invoices' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('invoices') ?>">Meine Rechnungen</a>
-        <?php endif ?>
-        <a<?= $current === 'billing' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('billing') ?>">Rechnungsdaten</a>
+        <a<?= $current === 'list' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('list') ?>">Meine Befragungen</a>
+        <a<?= $current === 'new' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Neue Befragung</a>
+        <a<?= $current === 'results' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('results') ?>">Ergebnisse</a>
+        <a<?= $current === 'branding' ? ' class="workspace-current" aria-current="page"' : '' ?> href="<?= $url('branding') ?>">Erscheinungsbild</a>
     <?php endif ?>
-    <form method="post" action="<?= $url('logout') ?>">
-        <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
-        <button type="submit">Abmelden</button>
-    </form>
 </nav>

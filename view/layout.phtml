@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>myFeedback Kompass</title>
+    <title><?= $this->pageTitle ? $this->escapeHtml($this->pageTitle) . ' · ' : '' ?>myFeedback Kompass</title>
     <link rel="icon" type="image/svg+xml" href="<?= $this->escapeHtmlAttr($this->basePath('/icon-kompass.svg')) ?>">
     <link rel="stylesheet" href="<?= $this->escapeHtmlAttr($this->basePath('/wizard.css') . '?v=' . filemtime(dirname(__DIR__) . '/public/wizard.css')) ?>">
     <script src="<?= $this->escapeHtmlAttr($this->basePath('/wizard.js') . '?v=' . filemtime(dirname(__DIR__) . '/public/wizard.js')) ?>" defer></script>
@@ -14,12 +14,13 @@
             <a href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>" aria-label="myFeedback Kompass · Zur Startseite">
                 <img src="<?= $this->escapeHtmlAttr($this->basePath('/logo-kompass.svg')) ?>" alt="myFeedback Kompass" width="390" height="75">
             </a>
-            <p class="brand-claim">Sie kennen Ihr Anliegen. Wir kennen die Fragen</p>
+            <p class="brand-claim">Sie kennen Ihr Anliegen. Wir kennen die Fragen.</p>
             <nav class="account-nav" aria-label="Seitennavigation">
-                <a href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Zum Kompass</a>
-                <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])) ?>">FAQ</a>
-                <?php if ($this->accountEnabled && !$this->accountWorkspace && !$this->wizardWorkspace): ?>
-                    <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'login']])) ?>">Anmelden</a>
+                <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])) ?>"<?= $this->accountCurrent === 'faq' ? ' aria-current="page"' : '' ?>>FAQ</a>
+                <?php if ($this->accountUser): ?>
+                    <?= $this->partial('wizard/account-menu', ['current' => $this->accountCurrent ?? '', 'csrf' => $this->accountUser['csrf'], 'admin' => $this->accountUser['admin']]) ?>
+                <?php elseif ($this->accountEnabled): ?>
+                    <a class="account-login" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'login']])) ?>">Anmelden</a>
                 <?php endif ?>
             </nav>
         </div>

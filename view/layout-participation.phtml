@@ -1,0 +1,39 @@
+<?php
+// Seite für die Befragten: ohne Kompass-Navigation, mit Logo/Farben des Inhabers (falls hinterlegt)
+$branding = $this->branding ?? ['primary' => null, 'accent' => null, 'logo' => null, 'name' => null];
+$style = \MyFeedback\Wizard\AccountBranding::cssVariables($branding);
+?>
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title><?= $branding['name'] !== null ? $this->escapeHtml($branding['name']) . ' · ' : '' ?>Befragung</title>
+    <link rel="icon" type="image/svg+xml" href="<?= $this->escapeHtmlAttr($this->basePath('/icon-kompass.svg')) ?>">
+    <link rel="stylesheet" href="<?= $this->escapeHtmlAttr($this->basePath('/wizard.css') . '?v=' . filemtime(dirname(__DIR__) . '/public/wizard.css')) ?>">
+    <script src="<?= $this->escapeHtmlAttr($this->basePath('/wizard.js') . '?v=' . filemtime(dirname(__DIR__) . '/public/wizard.js')) ?>" defer></script>
+</head>
+<body class="participation-page<?= $style !== '' ? ' branded' : '' ?>"<?= $style !== '' ? ' style="' . $this->escapeHtmlAttr($style) . '"' : '' ?>>
+    <?php if ($branding['logo'] !== null || $branding['name'] !== null): ?>
+        <header class="participation-header">
+            <div class="shell">
+                <?php if ($branding['logo'] !== null): ?>
+                    <img src="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['logo' => $branding['logo']]])) ?>" alt="<?= $this->escapeHtmlAttr($branding['name'] ?? 'Logo') ?>">
+                <?php else: ?>
+                    <strong><?= $this->escapeHtml($branding['name']) ?></strong>
+                <?php endif ?>
+            </div>
+        </header>
+    <?php endif ?>
+    <main class="shell main participation-main">
+        <?= $this->content ?>
+    </main>
+    <footer class="participation-footer">
+        <div class="shell">
+            Befragung mit <a href="https://www.my-feedback.info/de/kompass" target="_blank" rel="noopener">myFeedback Kompass</a>
+            · <a href="<?= $this->escapeHtmlAttr($this->privacyUrl ?? 'https://www.my-feedback.info/de/datenschutz') ?>" target="_blank" rel="noopener">Datenschutz</a>
+        </div>
+    </footer>
+</body>
+</html>

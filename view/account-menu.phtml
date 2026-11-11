@@ -1,0 +1,41 @@
+<?php
+// Konto-Menü oben rechts. Desktop: Rechnungen, Rechnungsdaten, Abmelden (der Rest steht im linken Menü).
+// Handy: das komplette Kontomenü, das linke Menü entfällt dort.
+$url = fn (string $action) => $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => $action]]));
+$item = fn (string $key, string $href, string $label): string => '<a href="' . $href . '"' . ($current === $key ? ' aria-current="page"' : '') . '>' . $this->escapeHtml($label) . '</a>';
+?>
+<div class="account-menu" data-account-menu>
+    <button type="button" class="account-menu-button" aria-expanded="false" aria-controls="account-menu-panel" data-account-menu-button>
+        <svg class="account-menu-user" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.4-3.6 4.2-5.5 7.5-5.5s6.1 1.9 7.5 5.5"/></svg>
+        <svg class="account-menu-burger" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <span class="account-menu-label-desktop">Mein Konto</span>
+        <span class="account-menu-label-mobile">Menü</span>
+        <svg class="account-menu-caret" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <div class="account-menu-panel" id="account-menu-panel" data-account-menu-panel hidden>
+        <div class="account-menu-main">
+            <?php if (!empty($admin)): ?>
+                <p>Administration</p>
+                <?= $item('bookkeeping', $url('bookkeeping'), 'Buchhaltung') ?>
+                <?= $item('issuer', $url('issuer'), 'Rechnungsaussteller') ?>
+            <?php else: ?>
+                <p>Ihr Kompass-Konto</p>
+                <?= $item('list', $url('list'), 'Meine Befragungen') ?>
+                <?= $item('new', $this->escapeHtmlAttr($this->url('wizard')), 'Neue Befragung') ?>
+                <?= $item('results', $url('results'), 'Ergebnisse') ?>
+                <?= $item('branding', $url('branding'), 'Erscheinungsbild') ?>
+            <?php endif ?>
+        </div>
+        <div class="account-menu-account">
+            <p>Konto</p>
+            <?php if (empty($admin)): ?>
+                <?= $item('invoices', $url('invoices'), 'Meine Rechnungen') ?>
+                <?= $item('billing', $url('billing'), 'Rechnungsdaten') ?>
+            <?php endif ?>
+            <form method="post" action="<?= $url('logout') ?>">
+                <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
+                <button type="submit">Abmelden</button>
+            </form>
+        </div>
+    </div>
+</div>

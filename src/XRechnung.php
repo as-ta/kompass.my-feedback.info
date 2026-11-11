@@ -87,8 +87,10 @@ final class XRechnung
         $this->text($line, 'InvoicedQuantity', '1')->setAttribute('unitCode', 'C62');
         $this->money($line, 'LineExtensionAmount', $net);
         $item = $this->group($line, 'Item');
-        $this->text($item, 'Description', 'Vorauszahlung für vier Wochen Teilnahme ab Freischaltung, Befragung Nr. ' . $payment['poll_id']
-            . ', Buchung ' . $payment['period_number']);
+        $this->text($item, 'Description', ($payment['subscription_id'] ?? null) !== null
+            ? 'Abo: ein Monat Teilnahme, Befragung „' . ($payment['title'] ?? 'Befragung') . '“, Abrechnung ' . $payment['period_number']
+            : 'Vorauszahlung für vier Wochen Teilnahme ab Freischaltung, Befragung „'
+            . ($payment['title'] ?? 'Befragung') . '“, Buchung ' . $payment['period_number']);
         $this->text($item, 'Name', 'myFeedback Kompass – Teilnahmezeitraum');
         $this->taxCategory($item, 'ClassifiedTaxCategory', $rate);
         $this->money($this->group($line, 'Price'), 'PriceAmount', $net);
