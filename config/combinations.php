@@ -15,6 +15,7 @@ return [
         'renewal', 'return', 'product-use',
         'store-satisfaction', 'online-satisfaction', 'service-satisfaction',
         'transaction-nps', 'relationship-nps', 'purchase-effort', 'service-effort',
+        'acquisition', 'choice-reasons', 'customer-profile', 'price-perception', 'offer-wishes',
     ],
     'metricSuffix' => [
         'ces' => '-ces',

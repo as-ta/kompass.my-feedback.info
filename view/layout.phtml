@@ -16,7 +16,7 @@
             </a>
             <p class="brand-claim">Sie kennen Ihr Anliegen. Wir kennen die Fragen.</p>
             <nav class="account-nav" aria-label="Seitennavigation">
-                <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])) ?>"<?= $this->accountCurrent === 'faq' ? ' aria-current="page"' : '' ?>>FAQ</a>
+                <a class="account-nav-faq<?= $this->accountUser ? ' account-nav-faq--menu' : '' ?>" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])) ?>"<?= $this->accountCurrent === 'faq' ? ' aria-current="page"' : '' ?>>FAQ</a>
                 <?php if ($this->accountUser): ?>
                     <?= $this->partial('wizard/account-menu', ['current' => $this->accountCurrent ?? '', 'csrf' => $this->accountUser['csrf'], 'admin' => $this->accountUser['admin']]) ?>
                 <?php elseif ($this->accountEnabled): ?>
@@ -25,13 +25,28 @@
             </nav>
         </div>
     </header>
+    <?php
+        $locations = ['list' => 'Meine Befragungen', 'new' => 'Neue Befragung', 'results' => 'Ergebnisse', 'branding' => 'Erscheinungsbild',
+            'invoices' => 'Meine Rechnungen', 'billing' => 'Rechnungsdaten', 'faq' => 'FAQ', 'contact' => 'Kontakt',
+            'bookkeeping' => 'Buchhaltung', 'issuer' => 'Rechnungsaussteller'];
+        $location = $this->accountUser ? ($locations[$this->accountCurrent ?? ''] ?? null) : null;
+    ?>
+    <?php if ($location !== null): ?>
+        <p class="mobile-location"><span class="shell">Mein Konto <span aria-hidden="true">›</span> <strong><?= $this->escapeHtml($location) ?></strong></span></p>
+    <?php endif ?>
     <main class="shell main<?= ($this->accountWorkspace || $this->wizardWorkspace) ? ' account-shell' : '' ?>">
+        <?php if ($this->editing && $this->wizardWorkspace): ?>
+            <p class="editing-banner" role="status">
+                Sie passen „<?= $this->escapeHtml($this->editing['title']) ?>“ an. Die Änderungen werden erst mit „Änderungen übernehmen“ gespeichert.
+                <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'edit-cancel']])) ?>">Abbrechen</a>
+            </p>
+        <?php endif ?>
         <?php if ($this->progress): ?>
             <?= $this->partial('wizard/progress', ['progress' => $this->progress]) ?>
         <?php endif ?>
         <?php if ($this->wizardWorkspace): ?>
             <div class="account-workspace">
-                <?= $this->partial('wizard/workspace-nav', ['current' => 'new', 'csrf' => $this->workspaceCsrf]) ?>
+                <?= $this->partial('wizard/workspace-nav', ['current' => $this->editing ? 'list' : 'new', 'csrf' => $this->workspaceCsrf]) ?>
                 <div class="wizard-workspace-content"><?= $this->content ?></div>
             </div>
         <?php else: ?>

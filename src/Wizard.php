@@ -4,50 +4,45 @@ declare(strict_types=1);
 
 namespace MyFeedback\Wizard;
 
+/**
+ * Wizard „Anliegen klären“: ein Anliegen („Wo drückt der Schuh?“), dann die Branche, dann die Fragen zum Anliegen.
+ * Ergänzende Themen (z. B. Zufriedenheit zusätzlich zur Wiederkaufabsicht) gibt es als Zusatzfragen.
+ */
 final class Wizard
 {
     public function __construct(
         private readonly array $steps,
         private readonly array $surveys,
         private readonly array $combinations,
+        private readonly array $industries = [],
     ) {
     }
 
     public function resolve(array $query): array
     {
-        $submitted = $query['goal'] ?? [];
-        $values = is_array($submitted) ? $submitted : [$submitted];
-        $goals = array_keys(array_intersect_key($this->steps['goal']['options'], array_fill_keys(
-            array_filter($values, 'is_string'),
-            true,
-        )));
-        $valid = $goals !== [] && count($goals) <= 3
-            && (!in_array('employees', $goals, true) || count($goals) === 1)
-            && count(array_filter($values, 'is_string')) === count($values)
-            && array_diff($values, $goals) === [];
-
-        if (!$valid) {
-            return $this->step('goal', $this->steps['goal'], [], $query, $goals);
+        // Anliegen: genau eines. Ältere Links mit goal[]=… und genau einem Eintrag funktionieren weiter.
+        $submitted = $query['goal'] ?? null;
+        if (is_array($submitted) && count($submitted) === 1) {
+            $submitted = reset($submitted);
         }
+        $goal = is_string($submitted) && isset($this->steps['goal']['options'][$submitted]) ? $submitted : null;
+        if ($goal === null) {
+            return $this->step('goal', $this->steps['goal'], [], $query);
+        }
+        $answers = ['goal' => $goal];
 
-        $answers = ['goal' => $goals];
-        $main = $goals[0];
-        if (count($goals) > 1) {
-            $options = array_intersect_key($this->steps['goal']['options'], array_flip($goals));
-            $main = $query['main'] ?? null;
-            if (!is_string($main) || !isset($options[$main])) {
-                return $this->step('main', [
-                    'title' => 'Was möchten Sie zuerst herausfinden?',
-                    'hint' => 'Das Hauptanliegen gibt vor, wen Sie befragen und worum es im Fragebogen vor allem geht.',
-                    'options' => $options,
-                ], $answers, $query);
+        if ($this->industries !== []) {
+            $industry = $query['branche'] ?? null;
+            if (!is_string($industry) || !isset($this->industries[$industry])) {
+                return $this->step('branche', $this->industryStep(), $answers, $query);
             }
-            $answers['main'] = $main;
+            $answers['branche'] = $industry;
         }
+        $industry = $this->industries[$answers['branche'] ?? ''] ?? [];
 
-        $stepId = $this->steps['goal']['options'][$main]['next'];
+        $stepId = $this->steps['goal']['options'][$goal]['next'];
         while (isset($this->steps[$stepId])) {
-            $step = $this->steps[$stepId];
+            $step = $this->adaptStep($stepId, $this->steps[$stepId], $industry);
             $value = $query[$stepId] ?? null;
             if (isset($step['checkboxes']) && is_array($value)) {
                 $known = array_keys($step['checkboxes']);
@@ -63,78 +58,124 @@ final class Wizard
         }
 
         $surveyId = $stepId . ($this->combinations['metricSuffix'][$answers['metric'] ?? ''] ?? '');
-        $survey = $this->surveys[$surveyId];
-        $included = [];
-        $separate = [];
-        $extraTopics = array_diff($goals, [$main]);
-        $compatible = in_array($stepId, $this->combinations['compatible'], true);
-        foreach ($extraTopics as $topic) {
-            $label = $this->steps['goal']['options'][$topic]['label'];
-            if (!$compatible) {
-                $editStep = match ($stepId) {
-                    'cancellation', 'repurchase' => 'audience',
-                    'idea-customers', 'idea-prospects' => 'product-stage',
-                    'product-nonpurchase' => 'product-audience',
-                    default => 'main',
-                };
-                $separate[$topic] = [
-                    'label' => $label,
-                    'edit' => $this->editChoice($answers, $editStep),
-                    'editLabel' => match ($editStep) {
-                        'audience', 'product-audience' => 'Zurück zur Auswahl der Befragten',
-                        'product-stage' => 'Auswahl zu Produkt oder Idee ändern',
-                        default => 'Hauptanliegen ändern',
-                    },
-                    'canInclude' => false,
-                ];
-                continue;
-            }
-
-            $extraId = 'combine-' . $topic;
-            $step = $this->combinations['steps'][$topic];
-            $value = $query[$extraId] ?? null;
-            if (!is_string($value) || !isset($step['options'][$value])) {
-                return $this->step($extraId, $step, $answers, $query);
-            }
-
-            $answers[$extraId] = $value;
-            $question = $step['options'][$value]['question'] ?? null;
-            if ($question === null) {
-                $separate[$topic] = [
-                    'label' => $label,
-                    'edit' => $this->editChoice($answers, $extraId),
-                    'editLabel' => 'Auswahl ändern und Thema aufnehmen',
-                    'canInclude' => true,
-                ];
-            } else {
-                $survey['questions'][] = $question;
-                $included[] = $label;
-            }
-        }
-
-        if ($included !== []) {
-            $survey['comment'] = 'Möchten Sie uns noch etwas mitteilen?';
-        }
+        $survey = $this->adaptSurvey($surveyId, $this->surveys[$surveyId], $industry);
 
         return [
             'survey' => $survey,
             'surveyId' => $surveyId,
-            'main' => $main,
+            'baseId' => $stepId,
+            'main' => $goal,
+            'industry' => $answers['branche'] ?? null,
             'answers' => $answers,
-            'included' => $included,
-            'separate' => $separate,
+            'included' => [],
+            'separate' => [],
         ];
     }
 
-    private function editChoice(array $answers, string $step): array
+    /** Zielgruppe in der Sprache der Branche */
+    public function audience(string $surveyId, string $audience, ?string $industry): string
     {
-        $position = array_search($step, array_keys($answers), true);
-        return array_slice($answers, 0, $position) + ['selected' => $answers[$step]];
+        $config = $this->industries[$industry ?? ''] ?? [];
+        if (isset($config['visit']['audience']) && str_starts_with($surveyId, 'store-satisfaction')) {
+            return $config['visit']['audience'];
+        }
+        return self::people($audience, $config);
+    }
+
+    private function industryStep(): array
+    {
+        return [
+            'title' => 'In welcher Branche sind Sie tätig?',
+            'hint' => 'Damit wir die Fragen in Ihrer Sprache stellen.',
+            'options' => array_map(static fn (array $industry): array => ['label' => $industry['label']], $this->industries),
+        ];
+    }
+
+    private function adaptStep(string $id, array $step, array $industry): array
+    {
+        foreach ($industry['hide'][$id] ?? [] as $hidden) {
+            unset($step['options'][$hidden]);
+        }
+        foreach ($step['options'] as $key => $option) {
+            if (isset($industry['labels'][$id . '.' . $key])) {
+                $step['options'][$key]['label'] = $industry['labels'][$id . '.' . $key];
+            }
+        }
+        $step['title'] = self::people($step['title'], $industry);
+        $step['hint'] = self::people($step['hint'] ?? '', $industry);
+        foreach (['options', 'checkboxes'] as $group) {
+            foreach ($step[$group] ?? [] as $key => $option) {
+                $step[$group][$key]['label'] = self::people($option['label'] ?? '', $industry);
+                if (isset($option['hint'])) {
+                    $step[$group][$key]['hint'] = self::people($option['hint'], $industry);
+                }
+            }
+        }
+        return $step;
+    }
+
+    private function adaptSurvey(string $surveyId, array $survey, array $industry): array
+    {
+        $visit = $industry['visit'] ?? null;
+        if ($visit !== null && str_starts_with($surveyId, 'store-satisfaction')) {
+            $default = $this->surveys['store-satisfaction'];
+            $survey['title'] = str_replace($default['title'], $visit['title'], $survey['title']);
+            $survey['distribution'] = $visit['distribution'];
+            foreach ($survey['questions'] as $index => $question) {
+                if ($question['text'] === $default['questions'][0]['text']) {
+                    $survey['questions'][$index]['text'] = $visit['question'];
+                } elseif ($question['text'] === $default['questions'][1]['text']) {
+                    $survey['questions'][$index]['options'] = $visit['aspects'];
+                } elseif (($question['metric'] ?? null) === 'ces') {
+                    $survey['questions'][$index]['text'] = $visit['effort'];
+                }
+            }
+        }
+        foreach ($survey['questions'] as $index => $question) {
+            $survey['questions'][$index] = self::adaptQuestion($question, $industry);
+        }
+        if (isset($survey['comment'])) {
+            $survey['comment'] = self::phrase($survey['comment'], $industry);
+        }
+        $survey['title'] = self::owner(self::people($survey['title'], $industry), $industry);
+        $survey['why'] = self::owner(self::people($survey['why'], $industry), $industry);
+        return $survey;
+    }
+
+    /** Frage (inkl. Zusatzfrage) in der Sprache der Branche */
+    public function question(array $question, ?string $industry): array
+    {
+        return self::adaptQuestion($question, $this->industries[$industry ?? ''] ?? []);
+    }
+
+    private static function adaptQuestion(array $question, array $industry): array
+    {
+        $question['text'] = self::phrase($question['text'], $industry);
+        if (isset($question['options']) && !isset($question['ends'])) {
+            $question['options'] = array_map(static fn (string $option): string => self::phrase($option, $industry), $question['options']);
+        }
+        return $question;
+    }
+
+    private static function phrase(string $text, array $industry): string
+    {
+        $text = strtr($text, $industry['phrases'] ?? []);
+        return isset($industry['company']) ? str_replace('unser Unternehmen', $industry['company'], $text) : $text;
+    }
+
+    private static function owner(string $text, array $industry): string
+    {
+        return isset($industry['owner']) ? str_replace('Ihr Unternehmen', $industry['owner'], $text) : $text;
+    }
+
+    /** „Kunden“ durch die Bezeichnung der Branche ersetzen (nur ganze Wörter, „Kundenservice“ bleibt). */
+    private static function people(string $text, array $industry): string
+    {
+        return isset($industry['people']) ? (string) preg_replace('/\bKunden\b/u', $industry['people'], $text) : $text;
     }
 
     /**
      * Anteil der bereits beantworteten Wizard-Fragen (0 bis 1).
-     * Gerechnet wird mit dem längsten noch möglichen Weg, damit der Füllstand nie zurückspringt.
      * Der Zusatzfragen-Schritt zählt als letzte Station vor der Empfehlung.
      */
     public static function addonsProgress(array $answers): float
@@ -144,18 +185,11 @@ final class Wizard
 
     private function progress(string $id, array $answers): float
     {
-        $goals = (array) ($answers['goal'] ?? []);
-        $answeredCombine = count(array_filter(array_keys($answers), static fn ($key): bool => str_starts_with((string) $key, 'combine-')));
-        $pendingCombine = max(0, count($goals) - 1 - $answeredCombine);
-
-        $remaining = match (true) {
-            $id === 'goal' => $this->longest('goal'),
-            $id === 'main' => 1 + max(array_map(
-                fn (string $goal): int => $this->longest($this->steps['goal']['options'][$goal]['next']),
-                $goals,
-            )) + $pendingCombine,
-            str_starts_with($id, 'combine-') => $pendingCombine,
-            default => $this->longest($id) + $pendingCombine,
+        $industryStep = $this->industries !== [] ? 1 : 0;
+        $remaining = match ($id) {
+            'goal' => $this->longest('goal') + $industryStep,
+            'branche' => 1 + $this->longest($this->steps['goal']['options'][$answers['goal']]['next']),
+            default => $this->longest($id),
         };
 
         return count($answers) / (count($answers) + $remaining + 1);
@@ -177,16 +211,15 @@ final class Wizard
         return $memo[$id];
     }
 
-    private function step(string $id, array $step, array $answers, array $query, array $goals = []): array
+    private function step(string $id, array $step, array $answers, array $query): array
     {
         return [
             'stepId' => $id,
             'progress' => $this->progress($id, $answers),
             'step' => $step,
             'answers' => $answers,
-            'invalid' => array_key_exists($id, $query) || ($id === 'goal' && isset($query['choose-goals']))
-                || (isset($step['checkboxes']) && isset($query['choose-' . $id])),
-            'goals' => $goals,
+            'invalid' => array_key_exists($id, $query) || (isset($step['checkboxes']) && isset($query['choose-' . $id])),
+            'goals' => [],
         ];
     }
 }

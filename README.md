@@ -1,6 +1,6 @@
 # myFeedback Kompass
 
-Eigenständige Laminas-MVC-Anwendung für den ersten Teil des Befragungsassistenten. Der Wizard führt je nach Anliegen durch die passenden Rückfragen. Bis zu drei Kundenthemen lassen sich mit einem Hauptanliegen verbinden. Danach folgen freiwillige Zusatzfragen und die Fragebogenvorschau mit einer separaten Anleitung zur Durchführung.
+Eigenständige Laminas-MVC-Anwendung für den ersten Teil des Befragungsassistenten. Der Wizard führt je nach Anliegen durch die passenden Rückfragen. Ablauf: ein Anliegen („Wo drückt der Schuh?“), die Branche (config/industries.php: Formulierungen, ausgeblendete Optionen, Einladungswege), die Rückfragen zum Anliegen, freiwillige Zusatzfragen (inkl. ergänzender Themen aus config/combinations.php) und die Empfehlung.
 
 ## Lokal starten
 
@@ -109,3 +109,10 @@ Auf der Detailseite (bereit/aktiv) zeigt „So erreichen Sie Ihre Befragten“ j
 Tablet-Modus: Teilnahmelink mit `&geraet=tablet`. Nach dem „Danke“ startet die Befragung nach 8 Sekunden neu; nach 90 Sekunden ohne Eingabe fragt sie „Sind Sie noch da?“ und beginnt nach weiteren 20 Sekunden neu (`&neu=1` verwirft die angefangene Teilnahme in der Sitzung, bereits beantwortete Fragen bleiben als abgebrochene Teilnahme erhalten). Im Tablet-Modus gibt es keine Testansicht: Antworten werden auch gespeichert, wenn der Inhaber angemeldet ist.
 
 Druckvorlagen: `?account=print&id=<Befragung>&vorlage=aushang|aufsteller|kaertchen|tablet` (nur für den angemeldeten Inhaber). Eigene Seite ohne Kompass-Rahmen (view/print.phtml, public/print.css, public/print.js) mit Logo, Hauptfarbe und QR-Code; Überschrift und Text sind vor dem Drucken änderbar. Gedruckt bzw. als PDF gespeichert wird über den Druckdialog des Browsers (A4, ohne Ränder).
+
+## Wizard (Stand 12.11.2026)
+
+- Erste Frage „Wo drückt der Schuh?“ mit sechs Anliegen (genau eins): Kunden laufen davon, Zufriedenheit, mehr Kunden gewinnen, Angebot und Preise, Produkt/Idee, Team.
+- Zweite Frage: Branche (config/industries.php). Steuert Formulierungen (`visit`, `phrases`, `people`, `company`, `owner`), ausgeblendete Optionen (`hide`), Beschriftungen (`labels`) und die Einladungswege im Teilen-Paket. Wird in `poll_version.wizard_answers` gespeichert (`branche`).
+- Ergänzende Themen (z. B. „Würden Sie wiederkommen?“) erscheinen als Zusatzfragen (WizardController::crossTopics).
+- „Fragebogen anpassen“: für noch nicht freigeschaltete Entwürfe (`?account=edit&id=…`). Der Wizard öffnet mit den gespeicherten Antworten, „Änderungen übernehmen“ ersetzt Anliegen und Fragen des Entwurfs (PollDrafts::replace). „Neu starten“, „Abbrechen“ oder ein Wechsel in den Kontobereich beenden das Anpassen.

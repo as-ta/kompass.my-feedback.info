@@ -21,7 +21,7 @@ $lengthKey = 'length:' . hash('sha256', serialize($answers)) . ':';
                     <input type="checkbox" name="extras[]" value="<?= $this->escapeHtmlAttr($key) ?>"<?= isset($selected[$key]) ? ' checked' : '' ?>>
                     <span>
                         <strong><?= $this->escapeHtml($option['text']) ?></strong>
-                        <span class="detail"><?= $key === 'comment' ? 'Antwort in eigenen Worten' : 'Eine Antwort zur Auswahl' ?></span>
+                        <span class="detail"><?= $key === 'comment' ? 'Freitext' : (isset($option['ends']) ? 'Bewertung von 1 bis 5' : 'Auswahl') ?></span>
                     </span>
                 </label>
             <?php endforeach ?>
@@ -40,5 +40,5 @@ $lengthKey = 'length:' . hash('sha256', serialize($answers)) . ':';
             <button type="submit">Befragung ansehen <span aria-hidden="true">→</span></button>
         </div>
     </form>
-    <?= $this->partial('wizard/contact-link') ?>
+    <?= $this->partial('wizard/contact-link', ['compact' => true]) ?>
 </section>

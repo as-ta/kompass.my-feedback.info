@@ -32,6 +32,7 @@ $item = fn (string $key, string $href, string $label): string => '<a href="' . $
                 <?= $item('invoices', $url('invoices'), 'Meine Rechnungen') ?>
                 <?= $item('billing', $url('billing'), 'Rechnungsdaten') ?>
             <?php endif ?>
+            <span class="account-menu-mobile-only"><?= $item('faq', $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['faq' => '1']])), 'FAQ') ?></span>
             <form method="post" action="<?= $url('logout') ?>">
                 <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($csrf) ?>">
                 <button type="submit">Abmelden</button>

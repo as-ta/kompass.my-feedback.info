@@ -30,12 +30,16 @@ final class WizardController extends AbstractActionController
         if ($accountEnabled && isset($_COOKIE[session_name()])) {
             AccountSession::start();
             if (AccountSession::userId() !== null) {
+                if ($query === []) {
+                    unset($_SESSION['kompass_edit']); // „Neu starten“ oder „Neue Befragung“ beendet das Anpassen
+                }
                 $this->layout()->wizardWorkspace = true;
                 $this->layout()->workspaceCsrf = AccountSession::csrf();
                 $this->layout()->accountUser = ['csrf' => AccountSession::csrf(), 'admin' => false];
+                $this->layout()->editing = $_SESSION['kompass_edit'] ?? null;
             }
         }
-        $this->layout()->accountCurrent = 'new';
+        $this->layout()->accountCurrent = $this->layout()->editing ? 'list' : 'new';
         $this->layout()->pageTitle = $this->layout()->wizardWorkspace ? 'Neue Befragung' : null;
         if (($query['faq'] ?? null) === '1') {
             $this->layout()->accountCurrent = 'faq';
@@ -54,7 +58,8 @@ final class WizardController extends AbstractActionController
 
         $catalog = require dirname(__DIR__) . '/config/catalog.php';
         $combinations = require dirname(__DIR__) . '/config/combinations.php';
-        $wizard = new Wizard($catalog['steps'], $catalog['surveys'], $combinations);
+        $industries = require dirname(__DIR__) . '/config/industries.php';
+        $wizard = new Wizard($catalog['steps'], $catalog['surveys'], $combinations, $industries);
         $result = $wizard->resolve($query);
 
         $back = $result['answers'];
@@ -70,7 +75,10 @@ final class WizardController extends AbstractActionController
         $survey = $result['survey'];
         $answers = $result['answers'];
         $addons = require dirname(__DIR__) . '/config/addons.php';
-        $options = $addons[$result['main']] + [
+        $options = array_map(
+            static fn (array $question): array => $wizard->question($question, $result['industry']),
+            $addons[$result['main']] + self::crossTopics($combinations, $result['main'], $result['baseId']),
+        ) + [
             'comment' => ['text' => $survey['comment'] ?? 'Möchten Sie uns noch etwas mitteilen?'],
         ];
 
@@ -92,7 +100,7 @@ final class WizardController extends AbstractActionController
         }
 
         $review = $answers + ['review' => '1', 'extras' => array_keys($selected)];
-        $audience = $catalog['audiences'][$result['surveyId']];
+        $audience = $wizard->audience($result['surveyId'], $catalog['audiences'][$result['surveyId']], $result['industry']);
         $draftKey = null;
         if ($accountEnabled && $done && ($query['guide'] ?? null) !== '1') {
             AccountSession::start();
@@ -104,6 +112,11 @@ final class WizardController extends AbstractActionController
                 'selection' => $review,
                 'questions' => $questions,
             ];
+            // „Fragebogen anpassen“: Beim Speichern wird der bestehende Entwurf ersetzt.
+            $editing = $this->layout()->wizardWorkspace ? ($_SESSION['kompass_edit'] ?? null) : null;
+            if (is_array($editing) && is_int($editing['id'] ?? null)) {
+                $snapshot['replace'] = $editing['id'];
+            }
             if (isset($selected['comment'])) {
                 $snapshot['questions'][] = ['text' => $selected['comment']['text']];
             }
@@ -125,6 +138,7 @@ final class WizardController extends AbstractActionController
             'review' => $review,
             'progress' => Wizard::addonsProgress($answers),
             'loggedIn' => (bool) $this->layout()->wizardWorkspace,
+            'editing' => $this->layout()->wizardWorkspace && isset($_SESSION['kompass_edit']['id']),
             'price' => (string) ((require dirname(__DIR__) . '/config/paypal.php')['amount'] ?? ''),
             'longSurvey' => count($selected) >= 3 || count($survey['questions']) + count($selected) >= 7,
         ]);
@@ -166,5 +180,30 @@ final class WizardController extends AbstractActionController
         }
 
         return (new ViewModel($result + $contact->form()))->setTemplate('wizard/contact');
+    }
+
+    /**
+     * Ergänzende Themen als Zusatzfragen: z. B. bei der Zufriedenheit zusätzlich „Würden Sie wiederkommen?“.
+     * Nur für Befragungen, bei denen dieselben Personen beide Fragen sinnvoll beantworten können.
+     */
+    private static function crossTopics(array $combinations, string $main, string $baseId): array
+    {
+        if (!in_array($baseId, $combinations['compatible'], true)) {
+            return [];
+        }
+        $pick = match ($main) {
+            'satisfaction' => ['loss' => 'return'],
+            'loss' => ['satisfaction' => 'include'],
+            'product', 'growth', 'offer' => ['satisfaction' => 'include'],
+            default => [],
+        };
+        $extra = [];
+        foreach ($pick as $topic => $option) {
+            $question = $combinations['steps'][$topic]['options'][$option]['question'] ?? null;
+            if ($question !== null) {
+                $extra['combine-' . $topic] = $question;
+            }
+        }
+        return $extra;
     }
 }

@@ -968,3 +968,38 @@ button.button-danger:hover { background: #8c2e1f; }
     .account-menu-label-desktop, .account-menu-user { display: none; }
     .account-menu-label-mobile, .account-menu-burger { display: inline; }
 }
+
+/* Header auf dem Handy: Logo links (kleiner), Menü immer rechts oben; Standortzeile unter dem Header */
+.mobile-location { display: none; }
+.account-menu-mobile-only { display: none; }
+@media (max-width: 47.99rem) {
+    .brand, .brand:has(.account-nav) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: .75rem; padding-block: .6rem; }
+    .brand > a { grid-column: 1; grid-row: 1; }
+    .brand img { width: clamp(8.5rem, 44vw, 13rem); }
+    .brand-claim { display: none; }
+    .account-nav { grid-column: 2; grid-row: 1; flex-wrap: nowrap; justify-self: end; }
+    .account-nav-faq--menu { display: none; }
+    .account-menu-mobile-only { display: block; }
+    .account-menu-button { padding: .45rem .6rem; }
+    .account-menu-panel { top: 100%; }
+    .mobile-location { display: block; margin: 0; padding: .45rem 0; background: #fff; border-bottom: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
+    .mobile-location strong { color: var(--ink, #192921); }
+}
+@media (max-width: 22rem) {
+    .account-menu-label-mobile { display: none; }
+}
+.mobile-location .shell { display: block; }
+
+/* Wizard: Branchenauswahl in zwei Spalten, kompakter Kontakt-Link, Hinweis aufs Teilen-Paket */
+@media (min-width: 40rem) {
+    .options--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+    .options--grid .option { margin: 0; }
+}
+.contact-link-compact { margin: 1.4rem 0 0; font-size: .9rem; color: var(--muted); }
+.contact-link-compact a { font-weight: 600; }
+.share-teaser { margin: 1.25rem 0 0; padding: .9rem 1.1rem; border-left: 4px solid var(--green); border-radius: .5rem; background: #f3f8ee; }
+.share-teaser p { margin: .3rem 0 0; font-size: .95rem; }
+.recommendation .contact-link { margin-top: 1.25rem; }
+.editing-banner { margin: 0 0 1rem; padding: .7rem 1rem; border-radius: .6rem; background: #fff6d8; border: 1px solid #ecd27e; font-size: .92rem; }
+.editing-banner a { margin-left: .4rem; font-weight: 700; }
+.poll-detail-delete a + span { margin: 0 .35rem; color: var(--muted); }

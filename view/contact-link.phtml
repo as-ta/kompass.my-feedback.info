@@ -1,4 +1,9 @@
-<aside class="contact-link">
-    <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['contact' => '1']])) ?>">Ich möchte etwas anderes fragen</a>
-    <p>Beschreiben Sie kurz, was Sie herausfinden möchten.</p>
-</aside>
+<?php $contactUrl = $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['contact' => '1']])); ?>
+<?php if (!empty($compact)): ?>
+    <p class="contact-link-compact">Passt nichts davon? <a href="<?= $contactUrl ?>">Beschreiben Sie uns Ihr Anliegen</a></p>
+<?php else: ?>
+    <aside class="contact-link">
+        <a href="<?= $contactUrl ?>">Ich möchte etwas anderes fragen</a>
+        <p>Beschreiben Sie kurz, was Sie herausfinden möchten.</p>
+    </aside>
+<?php endif ?>

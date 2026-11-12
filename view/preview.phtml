@@ -35,7 +35,7 @@
                 <li><?= $this->escapeHtml($question['text']) ?></li>
             <?php endforeach ?>
             <?php if ($commentText !== null): ?>
-                <li><?= $this->escapeHtml($commentText) ?> <span class="detail">Freiwillige Antwort in eigenen Worten</span></li>
+                <li><?= $this->escapeHtml($commentText) ?> <span class="detail">Freiwillig · Freitext</span></li>
             <?php endif ?>
         </ol>
     </section>
@@ -50,13 +50,18 @@
         </section>
     </details>
 
+    <aside class="share-teaser">
+        <strong>Inklusive: Wir helfen Ihnen beim Verteilen.</strong>
+        <p>Nach der Freischaltung bekommen Sie fertige Einladungstexte für E-Mail und WhatsApp, Druckvorlagen mit Ihrem Logo für Aushang und Kärtchen sowie einen Tablet-Modus für Ihre Räume.</p>
+    </aside>
+
     <?php if ($draftKey !== null): ?>
         <?php $formattedPrice = is_numeric($price) && (float) $price > 0 ? number_format((float) $price, 2, ',', '.') . ' €' : null; ?>
         <div class="next-step">
             <form method="post" action="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => ['account' => 'save']])) ?>">
                 <input type="hidden" name="draft" value="<?= $this->escapeHtmlAttr($draftKey) ?>">
                 <input type="hidden" name="csrf" value="<?= $this->escapeHtmlAttr($draftCsrf) ?>">
-                <button type="submit" aria-describedby="draft-action-hint"><?= $loggedIn ? 'Weiter zur Freischaltung' : 'Weiter zur Anmeldung' ?> <span aria-hidden="true">→</span></button>
+                <button type="submit" aria-describedby="draft-action-hint"><?= !empty($editing) ? 'Änderungen übernehmen' : ($loggedIn ? 'Weiter zur Freischaltung' : 'Weiter zur Anmeldung') ?> <span aria-hidden="true">→</span></button>
             </form>
             <p id="draft-action-hint">
                 Wir speichern die Empfehlung kostenlos und unverbindlich in Ihrem Konto.
@@ -72,7 +77,6 @@
         <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $answers + ['editing' => '1', 'extras' => array_keys($selected)]])) ?>">Zusatzfragen ändern</a>
         <span aria-hidden="true">·</span>
         <a class="restart-link" href="<?= $this->escapeHtmlAttr($this->url('wizard')) ?>">Neu starten</a>
-        <span aria-hidden="true">·</span>
-        <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], ['query' => $review + ['guide' => '1']])) ?>">Wie Sie Ihre Befragten erreichen</a>
     </p>
+    <?= $this->partial('wizard/contact-link') ?>
 </section>

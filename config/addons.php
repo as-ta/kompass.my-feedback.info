@@ -33,6 +33,22 @@ return [
             'Einfache Nutzung', 'Zuverlässigkeit', 'Preis', 'Schnelle Verfügbarkeit', 'Unterstützung bei Fragen', 'Etwas anderes',
         ]),
     ],
+    'growth' => [
+        'recommended' => $choice('Haben Sie uns schon einmal weiterempfohlen?', [
+            'Ja, mehrmals', 'Ja, einmal', 'Nein, noch nicht', 'Weiß ich nicht mehr',
+        ]),
+        'news' => $choice('Wie möchten Sie am liebsten von Neuigkeiten und Angeboten bei uns erfahren?', [
+            'E-Mail oder Newsletter', 'Soziale Medien', 'WhatsApp', 'Vor Ort', 'Gar nicht',
+        ]),
+    ],
+    'offer' => [
+        'frequency' => $choice('Wie oft nutzen Sie Angebote wie unseres?', [
+            'Mehrmals pro Woche', 'Etwa einmal pro Woche', 'Etwa einmal pro Monat', 'Mehrmals im Jahr', 'Seltener',
+        ]),
+        'payment' => $choice('Wie bezahlen Sie am liebsten?', [
+            'Bar', 'EC- oder Kreditkarte', 'Mit dem Smartphone', 'Rechnung oder Überweisung', 'PayPal', 'Egal',
+        ]),
+    ],
     'employees' => [
         'follow-up' => $choice('Wünschen Sie sich zu diesem Thema einen regelmäßigen Austausch?', [
             'Ja', 'Nein', 'Kann ich noch nicht sagen',

@@ -245,6 +245,9 @@
             <p><?= $this->escapeHtml($poll['purpose']) ?></p>
             <p class="detail"><strong>Zielgruppe</strong> · <?= $this->escapeHtml($poll['audience']) ?></p>
         </header>
+        <?php if (!empty($justUpdated)): ?>
+            <p class="workspace-saved" role="status">Ihre Änderungen sind übernommen.</p>
+        <?php endif ?>
         <?php if (!empty($justSaved)): ?>
             <p class="workspace-saved" role="status">Ihre Empfehlung ist gespeichert. Freischalten können Sie sie, wann immer Sie möchten.</p>
         <?php endif ?>
@@ -627,7 +630,11 @@
             </section>
         </details>
         <?php if ($poll['deletable']): ?>
-            <p class="poll-detail-delete"><a class="poll-delete-link" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('delete', ['id' => $pollId]))) ?>">Entwurf löschen</a></p>
+            <p class="poll-detail-delete">
+                <a href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('edit', ['id' => $pollId]))) ?>">Fragebogen anpassen</a>
+                <span aria-hidden="true">·</span>
+                <a class="poll-delete-link" href="<?= $this->escapeHtmlAttr($this->url('wizard', [], $accountUrl('delete', ['id' => $pollId]))) ?>">Entwurf löschen</a>
+            </p>
         <?php endif ?>
     <?php elseif ($page === 'expired'): ?>
         <h1>Anmeldelink nicht verfügbar</h1>

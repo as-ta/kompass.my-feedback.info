@@ -141,27 +141,27 @@ $catalog = [
     ],
     'steps' => [
         'goal' => [
-            'title' => 'Was möchten Sie herausfinden?',
-            'hint' => 'Wählen Sie bis zu drei Themen für dieselben Kunden. Für Mitarbeiter wählen Sie eine eigene Befragung.',
+            'title' => 'Wo drückt der Schuh?',
+            'hint' => 'Wählen Sie, was Sie gerade am meisten beschäftigt. Den passenden Fragebogen stellen wir für Sie zusammen.',
             'options' => [
                 'loss' => [
-                    'label' => 'Warum Kunden nicht wiederkommen',
-                    'hint' => 'Fragen Sie nach Kündigungen, längeren Kaufpausen oder danach, ob Kunden wiederkommen möchten.',
+                    'label' => 'Mir laufen Kunden davon',
+                    'hint' => 'Wir fragen nach, warum Kunden kündigen oder wegbleiben und ob sie wiederkommen würden.',
                     'next' => 'audience',
                 ],
                 'satisfaction' => [
-                    'label' => 'Wie zufrieden meine Kunden sind',
-                    'hint' => 'Fragen Sie zum Beispiel nach einem Einkauf oder danach, ob Kunden Sie weiterempfehlen würden.',
+                    'label' => 'Ich will wissen, wie zufrieden meine Kunden sind',
+                    'hint' => 'Zum Beispiel nach einem Einkauf oder Termin, mit Sternen oder mit der Frage, ob sie Sie weiterempfehlen würden.',
                     'next' => 'metric',
                 ],
                 'product' => [
-                    'label' => 'Wie kommt mein Produkt oder meine Idee an?',
-                    'hint' => 'Testen Sie eine Idee oder finden Sie heraus, was Menschen an einem vorhandenen Produkt schätzen.',
+                    'label' => 'Ich will wissen, wie mein Produkt oder meine Idee ankommt',
+                    'hint' => 'Testen Sie eine neue Idee oder erfahren Sie, was an einem vorhandenen Angebot gut ankommt.',
                     'next' => 'product-stage',
                 ],
                 'employees' => [
-                    'label' => 'Was denken meine Mitarbeiter über ihre Arbeit?',
-                    'hint' => 'Fragen Sie Ihr Team, wie der Arbeitsalltag oder der Einstieg läuft.',
+                    'label' => 'Ich will wissen, wie es meinem Team geht',
+                    'hint' => 'Fragen Sie Ihre Mitarbeiter nach Zusammenarbeit, Arbeitsalltag oder Einarbeitung.',
                     'next' => 'employee-topic',
                 ],
             ],
@@ -484,10 +484,196 @@ $catalog = [
     ],
 ];
 
+// Neue Themen (12.11.2026): Kunden gewinnen, Angebot und Preise, Veranstaltung, Mitarbeiterzufriedenheit, Austritt
+$goalOptions = $catalog['steps']['goal']['options'];
+$catalog['steps']['goal']['options'] = [
+    'loss' => $goalOptions['loss'],
+    'satisfaction' => $goalOptions['satisfaction'],
+    'growth' => [
+        'label' => 'Ich möchte mehr Kunden gewinnen',
+        'hint' => 'Erfahren Sie, wie Kunden Sie finden, warum sie sich für Sie entscheiden und wer sie sind.',
+        'next' => 'growth-topic',
+    ],
+    'offer' => [
+        'label' => 'Ich will wissen, ob Angebot und Preise passen',
+        'hint' => 'Fragen Sie, wie Ihre Preise ankommen und was sich Kunden zusätzlich wünschen.',
+        'next' => 'offer-topic',
+    ],
+    'product' => $goalOptions['product'],
+    'employees' => $goalOptions['employees'],
+];
+$catalog['steps']['growth-topic'] = [
+    'title' => 'Was möchten Sie über Ihre Kunden erfahren?',
+    'hint' => 'Wählen Sie, was Ihnen beim Gewinnen neuer Kunden am meisten hilft.',
+    'options' => [
+        'channels' => ['label' => 'Wie Kunden auf mich aufmerksam werden', 'hint' => 'Sie sehen, welche Wege wirken: Empfehlung, Google, soziale Medien oder Werbung.', 'next' => 'acquisition'],
+        'reasons' => ['label' => 'Warum Kunden sich für mich entscheiden', 'hint' => 'Sie erfahren, was Sie von anderen Anbietern unterscheidet.', 'next' => 'choice-reasons'],
+        'profile' => ['label' => 'Wer meine Kunden sind', 'hint' => 'Sie erfahren, wie oft Ihre Kunden kommen, woher sie kommen und für wen sie kaufen.', 'next' => 'customer-profile'],
+    ],
+];
+$catalog['steps']['offer-topic'] = [
+    'title' => 'Was möchten Sie zu Ihrem Angebot wissen?',
+    'hint' => 'Wählen Sie, was Sie gerade am meisten beschäftigt.',
+    'options' => [
+        'price' => ['label' => 'Wie meine Preise ankommen', 'hint' => 'Preis-Leistungs-Verhältnis, Vergleich mit anderen Anbietern und wofür Kunden mehr zahlen würden.', 'next' => 'price-perception'],
+        'wishes' => ['label' => 'Was sich Kunden zusätzlich wünschen', 'hint' => 'Fehlende Produkte, Leistungen, Öffnungszeiten oder Services.', 'next' => 'offer-wishes'],
+    ],
+];
+$catalog['steps']['touchpoint']['options']['event'] = ['label' => 'Eine Veranstaltung oder ein Seminar', 'next' => 'event-satisfaction'];
+$catalog['steps']['employee-topic']['options']['general'] = ['label' => 'Wie zufrieden mein Team insgesamt ist', 'next' => 'employee-satisfaction'];
+$catalog['steps']['employee-topic']['options']['exit'] = ['label' => 'Warum Mitarbeiter uns verlassen', 'next' => 'employee-exit'];
+
+$employeeRecommendation = $scale(
+    'Wie wahrscheinlich ist es, dass Sie uns als Arbeitgeber Freunden oder Bekannten empfehlen?',
+    0,
+    10,
+    'Äußerst unwahrscheinlich',
+    'Äußerst wahrscheinlich',
+) + ['metric' => 'nps'];
+
+$catalog['surveys'] += [
+    'acquisition' => [
+        'title' => 'Wie werden Kunden auf Sie aufmerksam?',
+        'why' => 'Sie sehen, welche Wege Ihnen tatsächlich Kunden bringen, und können Ihr Werbebudget gezielter einsetzen.',
+        'questions' => [
+            $choice('Wie sind Sie zum ersten Mal auf uns aufmerksam geworden?', [
+                'Empfehlung von Freunden, Bekannten oder Kollegen', 'Internetsuche (z. B. Google)', 'Bewertungsportal oder Karte (z. B. Google Maps)',
+                'Soziale Medien', 'Anzeige oder Werbung', 'Zufällig vorbeigekommen', 'Messe, Veranstaltung oder bestehender Kontakt',
+                'Etwas anderes', 'Weiß ich nicht mehr',
+            ]),
+            $choice('Seit wann sind Sie Kunde bei uns?', [
+                'Heute zum ersten Mal', 'Seit weniger als einem Jahr', 'Seit 1 bis 3 Jahren', 'Seit mehr als 3 Jahren',
+            ]),
+            $choice('Wo informieren Sie sich am ehesten über Angebote wie unseres?', [
+                'Suchmaschine', 'Soziale Medien', 'Bewertungsportale', 'Lokale Zeitung oder Anzeigenblatt',
+                'Newsletter oder E-Mail', 'Im Bekanntenkreis', 'Etwas anderes',
+            ]),
+        ],
+        'comment' => 'Wie könnten wir noch mehr Menschen wie Sie erreichen?',
+        'distribution' => 'Fragen Sie möglichst neue Kunden, solange sie sich noch daran erinnern, wie sie auf Sie gekommen sind.',
+        'report' => 'Zeigen Sie die Anteile der Wege, getrennt nach neuen und langjährigen Kunden.',
+    ],
+    'choice-reasons' => [
+        'title' => 'Warum entscheiden sich Kunden für Sie?',
+        'why' => 'Sie erfahren, was Sie aus Sicht Ihrer Kunden von anderen Anbietern unterscheidet. Genau das gehört in Ihre Werbung.',
+        'questions' => [
+            $choice('Was ist der wichtigste Grund, warum Sie sich für uns entschieden haben?', [
+                'Qualität', 'Preis', 'Beratung und Service', 'Auswahl', 'Lage und Erreichbarkeit',
+                'Persönlicher Kontakt', 'Empfehlung', 'Etwas anderes',
+            ]),
+            $choice('Haben Sie vor Ihrer Entscheidung auch andere Anbieter in Betracht gezogen?', [
+                'Ja, mehrere', 'Ja, einen', 'Nein', 'Weiß ich nicht mehr',
+            ]),
+            $scale('Wie schneiden wir im Vergleich zu anderen Anbietern ab?', 1, 5, 'Deutlich schlechter', 'Deutlich besser'),
+        ],
+        'comment' => 'Was unterscheidet uns aus Ihrer Sicht von anderen Anbietern?',
+        'distribution' => 'Fragen Sie aktuelle Kunden, am besten kurz nach einem Kauf oder Auftrag.',
+        'report' => 'Zeigen Sie die wichtigsten Gründe und den Vergleich mit anderen Anbietern.',
+    ],
+    'customer-profile' => [
+        'title' => 'Wer sind Ihre Kunden?',
+        'why' => 'Sie erfahren, wie oft Ihre Kunden kommen, woher sie kommen und für wen sie kaufen. So können Sie gezielter Menschen wie sie ansprechen.',
+        'questions' => [
+            $choice('Wie oft nutzen Sie unser Angebot?', [
+                'Heute zum ersten Mal', 'Mehrmals pro Woche', 'Etwa einmal pro Woche', 'Etwa einmal pro Monat', 'Mehrmals im Jahr', 'Seltener',
+            ]),
+            $choice('Wie lange brauchen Sie ungefähr zu uns?', [
+                'Weniger als 5 Minuten', '5 bis 15 Minuten', '15 bis 30 Minuten', 'Mehr als 30 Minuten', 'Ich nutze das Angebot online',
+            ]),
+            $choice('Für wen kaufen oder buchen Sie bei uns meistens?', [
+                'Für mich selbst', 'Für meine Familie oder meinen Haushalt', 'Für meine Firma', 'Als Geschenk', 'Unterschiedlich',
+            ]),
+            $choice('Zu welcher Altersgruppe gehören Sie?', [
+                'Unter 25', '25 bis 39', '40 bis 54', '55 bis 69', '70 oder älter', 'Möchte ich nicht angeben',
+            ]),
+        ],
+        'comment' => 'Was ist Ihnen bei einem Angebot wie unserem besonders wichtig?',
+        'distribution' => 'Fragen Sie über einen längeren Zeitraum möglichst unterschiedliche Kunden, nicht nur Stammkunden.',
+        'report' => 'Zeigen Sie die Verteilung je Frage. Werten Sie keine sehr kleinen Gruppen aus.',
+    ],
+    'price-perception' => [
+        'title' => 'Wie kommen Ihre Preise an?',
+        'why' => 'Sie erfahren, wie Kunden Ihr Preis-Leistungs-Verhältnis einschätzen und wofür sie mehr zahlen würden.',
+        'questions' => [
+            $scale('Wie bewerten Sie unser Preis-Leistungs-Verhältnis?', 1, 5, 'Sehr schlecht', 'Sehr gut', true),
+            $choice('Wie empfinden Sie unsere Preise im Vergleich zu ähnlichen Anbietern?', [
+                'Deutlich günstiger', 'Etwas günstiger', 'Etwa gleich', 'Etwas teurer', 'Deutlich teurer', 'Kann ich nicht beurteilen',
+            ]),
+            $choice('Wofür würden Sie am ehesten etwas mehr bezahlen?', [
+                'Bessere Qualität', 'Mehr Beratung oder Service', 'Schnellere Verfügbarkeit', 'Mehr Flexibilität bei Terminen oder Öffnungszeiten',
+                'Nichts davon', 'Kann ich nicht sagen',
+            ]),
+        ],
+        'comment' => 'Was sollten wir bei unseren Preisen oder Leistungen ändern?',
+        'distribution' => 'Fragen Sie aktuelle Kunden kurz nach einem Kauf oder Auftrag, solange der Preis noch präsent ist.',
+        'report' => 'Zeigen Sie die Bewertung des Preis-Leistungs-Verhältnisses und den Vergleich mit anderen Anbietern.',
+    ],
+    'offer-wishes' => [
+        'title' => 'Was wünschen sich Ihre Kunden zusätzlich?',
+        'why' => 'Sie erfahren, was Ihren Kunden bei Ihnen fehlt und wofür sie bisher woanders hingehen.',
+        'questions' => [
+            $scale('Wie gut deckt unser Angebot Ihren Bedarf ab?', 1, 5, 'Überhaupt nicht', 'Vollständig', true),
+            $choice('Was würden Sie sich von uns am meisten wünschen?', [
+                'Größere Auswahl', 'Neue Produkte oder Leistungen', 'Andere Öffnungszeiten', 'Online bestellen oder buchen',
+                'Liefer- oder Abholservice', 'Mehr Beratung', 'Etwas anderes', 'Nichts davon',
+            ]),
+            $choice('Haben Sie in letzter Zeit etwas woanders gekauft oder gebucht, das Sie gern bei uns bekommen hätten?', [
+                'Ja', 'Nein', 'Weiß ich nicht mehr',
+            ]),
+        ],
+        'comment' => 'Was genau fehlt Ihnen bei uns?',
+        'distribution' => 'Fragen Sie aktuelle Kunden, gern auch Stammkunden. Sie kennen Ihr Angebot am besten.',
+        'report' => 'Zeigen Sie die häufigsten Wünsche. Die Freitexte nennen oft konkrete Produkte oder Leistungen.',
+    ],
+    'event-satisfaction' => $satisfaction(
+        'Zufriedenheit mit der Veranstaltung',
+        'Wie zufrieden waren Sie mit der Veranstaltung insgesamt?',
+        'Bieten Sie die Befragung direkt am Ende der Veranstaltung an, etwa per QR-Code auf der letzten Folie oder als Link in der Dankes-E-Mail.',
+        ['Inhalte', 'Referentin oder Referent', 'Organisation', 'Ort und Räume', 'Verpflegung', 'Etwas anderes', 'Kann ich nicht sagen'],
+    ),
+    'employee-satisfaction' => $employeeSurvey(
+        'Wie zufrieden ist Ihr Team?',
+        'Sie erfahren, wie gern Ihre Mitarbeiter bei Ihnen arbeiten und ob sie Sie als Arbeitgeber weiterempfehlen würden.',
+        [
+            $employeeRecommendation,
+            $agreement('Ich arbeite gern in diesem Betrieb.'),
+            $agreement('Meine Arbeit wird wertgeschätzt.'),
+            $agreement('Ich sehe für mich eine Zukunft in diesem Betrieb.'),
+        ],
+        'Laden Sie alle Mitarbeiter ein. Bei kleinen Teams werten Sie nur das Gesamtergebnis aus.',
+    ),
+    'employee-exit' => array_replace($employeeSurvey(
+        'Warum verlassen Mitarbeiter Ihren Betrieb?',
+        'Ausscheidende Mitarbeiter sagen oft offener, was nicht gepasst hat. So können Sie verhindern, dass weitere gehen.',
+        [
+            $choice('Was war der wichtigste Grund für Ihre Entscheidung, uns zu verlassen?', [
+                'Bezahlung', 'Arbeitszeiten oder Arbeitsbelastung', 'Entwicklungsmöglichkeiten', 'Führung',
+                'Zusammenarbeit im Team', 'Persönliche oder familiäre Gründe', 'Ein besseres Angebot', 'Ein anderer Grund', 'Möchte ich nicht sagen',
+            ]),
+            $agreement('Unter anderen Umständen würde ich wieder hier arbeiten.'),
+            $employeeRecommendation,
+        ],
+        'Bitten Sie Mitarbeiter in ihren letzten Arbeitstagen um ihre Rückmeldung. Bei wenigen Austritten sammeln Sie die Antworten über einen längeren Zeitraum, damit niemand erkennbar ist.',
+    ), ['comment' => 'Was hätten wir tun können, damit Sie bleiben? Bitte nennen Sie keine Namen.']),
+];
+$catalog['audiences'] += [
+    'acquisition' => 'Möglichst neue Kunden, die sich noch erinnern, wie sie auf Sie gekommen sind.',
+    'choice-reasons' => 'Aktuelle Kunden, kurz nach einem Kauf oder Auftrag.',
+    'customer-profile' => 'Eine möglichst breite Auswahl Ihrer Kunden, nicht nur Stammkunden.',
+    'price-perception' => 'Aktuelle Kunden, kurz nach einem Kauf oder Auftrag.',
+    'offer-wishes' => 'Aktuelle Kunden, gern auch Stammkunden.',
+    'event-satisfaction' => 'Teilnehmende direkt nach der Veranstaltung.',
+    'employee-satisfaction' => 'Alle Mitarbeiter Ihres Betriebs.',
+    'employee-exit' => 'Mitarbeiter, die Ihren Betrieb verlassen.',
+];
+
+$catalog['surveys']['event-satisfaction']['why'] = 'Die Teilnehmenden bewerten mit fünf Sternen, wie zufrieden sie mit der Veranstaltung waren.';
+
 foreach ([
     'store-satisfaction' => 'Es war einfach, vor Ort bei Ihnen einzukaufen.',
     'online-satisfaction' => 'Es war einfach, bei Ihnen online zu bestellen.',
     'service-satisfaction' => 'Es war einfach, bei Ihrem Kundenservice Hilfe zu bekommen.',
+    'event-satisfaction' => 'Es war einfach, sich für die Veranstaltung anzumelden.',
 ] as $id => $effortStatement) {
     $base = $catalog['surveys'][$id];
     $withNps = $base;

@@ -29,6 +29,10 @@ final class AccountController extends AbstractActionController
 
         AccountSession::start();
         $action = $this->params()->fromQuery('account', '');
+        // „Fragebogen anpassen“ endet, sobald man den Wizard über das Konto verlässt.
+        if (!in_array($action, ['save', 'edit', 'edit-cancel'], true)) {
+            unset($_SESSION['kompass_edit']);
+        }
         $post = $this->getRequest()->isPost() ? $this->getRequest()->getPost()->toArray() : null;
         if ($post !== null && !AccountSession::accepts($post['csrf'] ?? null)) {
             $this->getResponse()->setStatusCode(400);
@@ -83,6 +87,8 @@ final class AccountController extends AbstractActionController
                 'branding' => $this->branding(new AccountBranding($db), $user, $post),
                 'draft' => $this->draft($drafts, $life, $billing, $user, $payments !== null, $payments === null ? '' : $paypal['amount'], $accountSettings['url'], $payments === null ? '' : (string) $paypal['client_id'], new AccountBranding($db), $subscriptions),
                 'delete' => $this->deleteDraft($drafts, $user, $post),
+                'edit' => $this->editDraft($drafts, $user),
+                'edit-cancel' => $this->cancelEdit(),
                 'start' => $this->startPoll($life, $user, $post),
                 'issuer' => $this->issuer(new InvoiceIssuer($db), new SandboxInvoices($db), $post),
                 'bookkeeping', 'bookkeeping-export', 'bookkeeping-receipt' => $this->bookkeeping($bookkeeping, $user, $action),
@@ -370,10 +376,46 @@ final class AccountController extends AbstractActionController
             unset($_SESSION['kompass_pending']);
             return $this->go('list');
         }
-        $id = $drafts->save($user, $key, $_SESSION['kompass_previews'][$key]);
-        unset($_SESSION['kompass_pending']);
+        $snapshot = $_SESSION['kompass_previews'][$key];
+        $replace = $snapshot['replace'] ?? null;
+        unset($snapshot['replace'], $_SESSION['kompass_pending']);
+        if (is_int($replace) && $drafts->replace($user, $replace, $snapshot)) {
+            unset($_SESSION['kompass_edit'], $_SESSION['kompass_previews'][$key]);
+            $_SESSION['kompass_poll_updated'] = $replace;
+            return $this->go('draft', ['id' => $replace]);
+        }
+        unset($_SESSION['kompass_edit']);
+        $id = $drafts->save($user, $key, $snapshot);
         $_SESSION['kompass_saved_poll'] = $id;
         return $this->go('draft', ['id' => $id]);
+    }
+
+    /** „Fragebogen anpassen“: Wizard mit den gespeicherten Antworten öffnen, beim Speichern wird der Entwurf ersetzt. */
+    private function editDraft(PollDrafts $drafts, ?int $user): Response|ViewModel
+    {
+        if ($user === null) {
+            return $this->go('login');
+        }
+        $id = filter_var($this->params()->fromQuery('id'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $poll = $id === false ? null : $drafts->find($user, $id);
+        if ($poll === null || !$poll['deletable']) {
+            return $id === false || $poll === null ? $this->go('list') : $this->go('draft', ['id' => $id]);
+        }
+        $_SESSION['kompass_edit'] = ['id' => $id, 'title' => $poll['title']];
+        $answers = json_decode((string) $poll['wizard_answers'], true);
+        $query = is_array($answers) ? $answers : [];
+        // Ältere Entwürfe: Anliegen als Liste, keine Branche – der Wizard fragt dann nach.
+        if (is_array($query['goal'] ?? null) && count($query['goal']) === 1) {
+            $query['goal'] = reset($query['goal']);
+        }
+        return $this->redirect()->toRoute('wizard', [], ['query' => $query])->setStatusCode(303);
+    }
+
+    private function cancelEdit(): Response
+    {
+        $id = $_SESSION['kompass_edit']['id'] ?? null;
+        unset($_SESSION['kompass_edit']);
+        return is_int($id) ? $this->go('draft', ['id' => $id]) : $this->go('list');
     }
 
     private function branding(AccountBranding $branding, ?int $user, ?array $post): ViewModel|Response
@@ -486,6 +528,10 @@ final class AccountController extends AbstractActionController
         }
         $returnedOrder = $this->params()->fromQuery('token');
         $justSaved = ($_SESSION['kompass_saved_poll'] ?? null) === $id;
+        $justUpdated = ($_SESSION['kompass_poll_updated'] ?? null) === $id;
+        if ($justUpdated) {
+            unset($_SESSION['kompass_poll_updated']);
+        }
         $continuePayment = ($_SESSION['kompass_continue_payment'] ?? null) === $id;
         if ($justSaved) {
             unset($_SESSION['kompass_saved_poll']);
@@ -513,6 +559,7 @@ final class AccountController extends AbstractActionController
             'paypalClientId' => $paypalClientId,
             'hasBilling' => $billing->hasDetails($user),
             'justSaved' => $justSaved,
+            'justUpdated' => $justUpdated,
             'continuePayment' => $continuePayment,
             'poll' => $poll,
             'pollId' => $id,

@@ -40,6 +40,14 @@ final class ShareKit
         'idea-prospects' => [['website', 'whatsapp', 'email'], 'was Sie von einer neuen Idee halten', 'Was halten Sie von dieser Idee?'],
         'product-use' => [['email', 'website'], 'wie Ihnen unser Produkt gefällt', 'Wie gefällt Ihnen unser Produkt?'],
         'product-nonpurchase' => [['email'], 'warum Sie sich gegen unser Angebot entschieden haben', 'Was hat Ihnen gefehlt?'],
+        'acquisition' => [['cards', 'poster', 'email'], 'wie Sie auf uns aufmerksam geworden sind', 'Wie haben Sie uns gefunden?'],
+        'choice-reasons' => [['email', 'cards', 'poster'], 'warum Sie sich für uns entschieden haben', 'Warum haben Sie sich für uns entschieden?'],
+        'customer-profile' => [['cards', 'poster', 'tablet'], 'was Ihnen bei uns wichtig ist', 'Erzählen Sie uns kurz von sich!'],
+        'price-perception' => [['email', 'cards', 'poster'], 'wie Sie unsere Preise und Leistungen einschätzen', 'Stimmt bei uns das Preis-Leistungs-Verhältnis?'],
+        'offer-wishes' => [['poster', 'cards', 'email'], 'was Sie sich zusätzlich von uns wünschen', 'Was wünschen Sie sich von uns?'],
+        'event-satisfaction' => [['email', 'poster', 'cards'], 'wie Ihnen die Veranstaltung gefallen hat', 'Wie hat Ihnen die Veranstaltung gefallen?'],
+        'employee-satisfaction' => [['email', 'poster', 'whatsapp'], 'wie zufrieden Sie mit Ihrer Arbeit bei uns sind', 'Wie zufrieden sind Sie bei uns?'],
+        'employee-exit' => [['email'], 'warum Sie sich für einen Wechsel entschieden haben', 'Ihre Rückmeldung zum Abschied'],
         'employee-team' => [['email', 'poster', 'whatsapp'], 'wie die Zusammenarbeit im Team läuft', 'Wie läuft die Zusammenarbeit?'],
         'employee-workload' => [['email', 'poster', 'whatsapp'], 'wie es Ihnen im Arbeitsalltag geht', 'Wie geht es Ihnen bei der Arbeit?'],
         'employee-orientation' => [['email', 'whatsapp'], 'wie Ihre ersten Wochen bei uns waren', 'Wie waren Ihre ersten Wochen?'],
@@ -62,6 +70,15 @@ final class ShareKit
             ?? [['email', 'cards', 'poster'], 'wie zufrieden Sie mit uns sind', 'Wie zufrieden sind Sie mit uns?'];
         if ($key === 'return' && ($answers['relationship'] ?? null) === 'store') {
             $recommended = ['cards', 'poster', 'email'];
+        }
+        // Branche (seit dem Wizard-Schritt „In welcher Branche sind Sie tätig?“)
+        $industries = require dirname(__DIR__) . '/config/industries.php';
+        $industry = $industries[(string) ($answers['branche'] ?? '')] ?? [];
+        if ($key === 'store-satisfaction' && isset($industry['visit'])) {
+            [$recommended, $topic, $headline] = [$industry['visit']['channels'], $industry['visit']['topic'], $industry['visit']['headline']];
+        }
+        if (($industry['people'] ?? null) !== null) {
+            $topic = (string) preg_replace('/\bKunden\b/u', $industry['people'], $topic);
         }
         $employees = str_starts_with($key, 'employee-');
         $count = count($poll['questions'] ?? []);

@@ -40,32 +40,71 @@ final class PollDrafts
                     $poll, $snapshot['title'], $snapshot['purpose'], $snapshot['audience'], $snapshot['catalog'],
                     json_encode($snapshot['selection'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
                 ]);
-                $versionId = (int) $this->db->lastInsertId();
-                $addQuestion = $this->db->prepare(
-                    'INSERT INTO question (poll_version_id, sort_order, prompt, question_type, metric, scale_low, scale_high, stars)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-                );
-                $addOption = $this->db->prepare(
-                    'INSERT INTO question_option (question_id, sort_order, label, numeric_value) VALUES (?, ?, ?, ?)'
-                );
-                foreach ($snapshot['questions'] as $index => $question) {
-                    $ends = $question['ends'] ?? [null, null];
-                    $type = isset($question['ends']) ? 'scale' : (isset($question['options']) ? 'choice' : 'text');
-                    $addQuestion->execute([
-                        $versionId, $index + 1, $question['text'], $type, $question['metric'] ?? null,
-                        $ends[0], $ends[1], (int) !empty($question['stars']),
-                    ]);
-                    $questionId = (int) $this->db->lastInsertId();
-                    foreach ($question['options'] ?? [] as $position => $option) {
-                        $addOption->execute([$questionId, $position + 1, $option, $type === 'scale' ? (int) $option : null]);
-                    }
-                }
+                $this->insertQuestions((int) $this->db->lastInsertId(), $snapshot['questions']);
             }
             $this->db->commit();
             return $poll;
         } catch (Throwable $error) {
             $this->db->rollBack();
             throw $error;
+        }
+    }
+
+    /**
+     * „Fragebogen anpassen“: ersetzt Anliegen und Fragen eines noch nicht freigeschalteten Entwurfs.
+     * Gibt false zurück, wenn der Entwurf nicht (mehr) bearbeitet werden darf, z. B. weil die Zahlung begonnen hat.
+     */
+    public function replace(int $owner, int $poll, array $snapshot): bool
+    {
+        $this->db->beginTransaction();
+        try {
+            $lock = $this->db->prepare('SELECT p.id FROM poll p WHERE p.id = ? AND p.owner_id = ? AND ' . $this->deletableSql() . ' FOR UPDATE');
+            $lock->execute([$poll, $owner]);
+            $version = $this->db->prepare('SELECT id FROM poll_version WHERE poll_id = ? AND version_number = 1');
+            $version->execute([$poll]);
+            $versionId = $lock->fetchColumn() === false ? false : $version->fetchColumn();
+            if ($versionId === false) {
+                $this->db->rollBack();
+                return false;
+            }
+            $versionId = (int) $versionId;
+            $this->db->prepare('DELETE o FROM question_option o JOIN question q ON q.id = o.question_id WHERE q.poll_version_id = ?')->execute([$versionId]);
+            $this->db->prepare('DELETE FROM question WHERE poll_version_id = ?')->execute([$versionId]);
+            $this->db->prepare(
+                'UPDATE poll_version SET title = ?, purpose = ?, audience = ?, catalog_key = ?, wizard_answers = ? WHERE id = ?'
+            )->execute([
+                $snapshot['title'], $snapshot['purpose'], $snapshot['audience'], $snapshot['catalog'],
+                json_encode($snapshot['selection'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), $versionId,
+            ]);
+            $this->insertQuestions($versionId, $snapshot['questions']);
+            $this->db->commit();
+            return true;
+        } catch (Throwable $error) {
+            $this->db->rollBack();
+            throw $error;
+        }
+    }
+
+    private function insertQuestions(int $versionId, array $questions): void
+    {
+        $addQuestion = $this->db->prepare(
+            'INSERT INTO question (poll_version_id, sort_order, prompt, question_type, metric, scale_low, scale_high, stars)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $addOption = $this->db->prepare(
+            'INSERT INTO question_option (question_id, sort_order, label, numeric_value) VALUES (?, ?, ?, ?)'
+        );
+        foreach ($questions as $index => $question) {
+            $ends = $question['ends'] ?? [null, null];
+            $type = isset($question['ends']) ? 'scale' : (isset($question['options']) ? 'choice' : 'text');
+            $addQuestion->execute([
+                $versionId, $index + 1, $question['text'], $type, $question['metric'] ?? null,
+                $ends[0], $ends[1], (int) !empty($question['stars']),
+            ]);
+            $questionId = (int) $this->db->lastInsertId();
+            foreach ($question['options'] ?? [] as $position => $option) {
+                $addOption->execute([$questionId, $position + 1, $option, $type === 'scale' ? (int) $option : null]);
+            }
         }
     }
 

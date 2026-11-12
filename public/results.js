@@ -126,6 +126,7 @@ if (window.am4core && window.am4charts) {
         const chart = base(am4core.create(container, am4charts.XYChart), result.title);
         chart.data = data;
         chart.padding(4, 48, 4, 0);
+        chart.maskBullets = false; // Prozentwerte rechts neben dem längsten Balken nicht abschneiden
         const categories = chart.yAxes.push(new am4charts.CategoryAxis());
         categories.dataFields.category = 'label';
         categories.renderer.inversed = true;
